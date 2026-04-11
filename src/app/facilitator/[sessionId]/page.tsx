@@ -32,6 +32,7 @@ type SessionDetail = {
     submitted: boolean;
     choices: string[];
     componentIds: string[];
+    requirements: { id: string; question: string; answer: string }[];
   }[];
 };
 
@@ -192,6 +193,20 @@ export default function FacilitatorPage() {
                 {/* 展開表示 */}
                 {group.submitted && expandedGroup === group.id && (
                   <div className="px-3 pb-3 space-y-3 border-t pt-3">
+                    {/* 要件確認 */}
+                    {group.requirements.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">確認した要件</p>
+                        {group.requirements.map((r, i) => (
+                          <div key={r.id} className="text-xs mb-1">
+                            <span className="font-medium">Q{i + 1}.</span> {r.question}
+                            {r.answer && (
+                              <span className="text-muted-foreground"> → {r.answer}</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                     {/* 選んだ特性 */}
                     {group.choices.length > 0 && (
                       <div>

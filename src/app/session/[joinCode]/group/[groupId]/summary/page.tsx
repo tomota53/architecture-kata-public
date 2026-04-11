@@ -61,6 +61,31 @@ export default async function SummaryPage({
 
         <Separator />
 
+        {/* 確認した要件 */}
+        {selection.requirements &&
+          Array.isArray(selection.requirements) &&
+          (selection.requirements as { id: string; question: string; answer: string }[]).length > 0 && (
+          <Card className="print:shadow-none print:border">
+            <CardHeader>
+              <CardTitle>確認した要件</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {(selection.requirements as { id: string; question: string; answer: string }[]).map(
+                (r, i) => (
+                  <div key={r.id} className="pl-4 border-l-2 border-blue-400">
+                    <p className="font-medium text-sm">Q{i + 1}. {r.question}</p>
+                    {r.answer && (
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        A{i + 1}. {r.answer}
+                      </p>
+                    )}
+                  </div>
+                )
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* 選んだ特性 */}
         <Card className="print:shadow-none print:border">
           <CardHeader>

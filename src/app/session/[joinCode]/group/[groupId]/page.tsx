@@ -12,6 +12,7 @@ import { Separator } from "@/components/ui/separator";
 import { ARCH_CHARACTERISTICS } from "@/lib/characteristics";
 import { ARCH_COMPONENTS, COMPONENT_CATEGORIES } from "@/lib/components-master";
 import { ComponentSelector } from "@/components/ComponentSelector";
+import { RequirementsEditor, type Requirement } from "@/components/RequirementsEditor";
 import {
   getSessionByJoinCode,
   getGroupById,
@@ -57,16 +58,19 @@ export default function ParticipantWorkPage() {
   // Step 1: メンバー名
   const [memberNames, setMemberNames] = useState<string[]>(["", "", "", "", ""]);
 
-  // Step 2: 特性選択（選択順を保持）
+  // Step 2: 要件確認
+  const [requirements, setRequirements] = useState<Requirement[]>([]);
+
+  // Step 3: 特性選択（選択順を保持）
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Step 3: 理由・トレードオフ
+  // Step 4: 理由・トレードオフ
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [tradeoffs, setTradeoffs] = useState<string[]>([]);
   const [tradeoffReasons, setTradeoffReasons] = useState<Record<string, string>>({});
   const [discussionMemo, setDiscussionMemo] = useState("");
 
-  // Step 4: コンポーネント選択
+  // Step 5: コンポーネント選択
   const [componentIds, setComponentIds] = useState<string[]>([]);
   const [componentReason, setComponentReason] = useState("");
 
@@ -112,7 +116,7 @@ export default function ParticipantWorkPage() {
 
   const filledMembers = memberNames.filter((n) => n.trim() !== "");
 
-  // Step 2: カード選択ハンドラ
+  // Step 3: カード選択ハンドラ
   const toggleCharacteristic = (id: string) => {
     setSelectedIds((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
@@ -121,7 +125,7 @@ export default function ParticipantWorkPage() {
     });
   };
 
-  // Step 3: トレードオフ選択ハンドラ
+  // Step 4: トレードオフ選択ハンドラ
   const toggleTradeoff = (id: string) => {
     setTradeoffs((prev) => {
       if (prev.includes(id)) return prev.filter((x) => x !== id);
@@ -130,17 +134,28 @@ export default function ParticipantWorkPage() {
     });
   };
 
-  // Step 4: コンポーネント選択ハンドラ
+  // Step 5: コンポーネント選択ハンドラ
   const toggleComponent = (id: string) => {
     setComponentIds((prev) =>
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
 
+  // Step 2 → 3 遷移: 要件確認スキップ判定
+  const handleRequirementsNext = () => {
+    const filledReqs = requirements.filter((r) => r.question.trim() !== "");
+    if (filledReqs.length === 0) {
+      if (!confirm("要件確認をスキップしますか？スキップしても次のステップに進めます。")) return;
+    }
+    setStep(3);
+  };
+
   // 提出処理
   const handleSubmit = async () => {
     setSubmitting(true);
     setError("");
+
+    const filledReqs = requirements.filter((r) => r.question.trim() !== "");
 
     const result = await submitSelections({
       groupId: group.id,
@@ -158,6 +173,7 @@ export default function ParticipantWorkPage() {
       discussionMemo,
       componentIds,
       componentReason,
+      requirements: filledReqs,
     });
 
     if (result.error) {
@@ -175,7 +191,7 @@ export default function ParticipantWorkPage() {
   // ステップインジケーター
   const StepIndicator = () => (
     <div className="flex justify-center gap-2 mb-6">
-      {[1, 2, 3, 4, 5].map((s) => (
+      {[1, 2, 3, 4, 5, 6].map((s) => (
         <div
           key={s}
           className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -246,11 +262,41 @@ export default function ParticipantWorkPage() {
         </Card>
       )}
 
-      {/* ===== Step 2: 特性カード選択 ===== */}
+      {/* ===== Step 2: 要件確認 ===== */}
       {step === 2 && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Step 2: お題に対して確認したいことを整理しましょう</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <RequirementsEditor
+                value={requirements}
+                onChange={setRequirements}
+              />
+            </CardContent>
+          </Card>
+
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => setStep(1)}>
+              戻る
+            </Button>
+            <Button
+              className="flex-1"
+              size="lg"
+              onClick={handleRequirementsNext}
+            >
+              次へ（特性選択）
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Step 3: 特性カード選択 ===== */}
+      {step === 3 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 2: 重要な特性を3つ選ぼう</CardTitle>
+            <CardTitle>Step 3: 重要な特性を3つ選ぼう</CardTitle>
             <p className="text-sm text-muted-foreground">
               選んだ順に1位・2位・3位が決まります（{selectedIds.length}/3 選択中）
             </p>
@@ -283,14 +329,14 @@ export default function ParticipantWorkPage() {
             </div>
 
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setStep(1)}>
+              <Button variant="outline" onClick={() => setStep(2)}>
                 戻る
               </Button>
               <Button
                 className="flex-1"
                 size="lg"
                 disabled={selectedIds.length === 0}
-                onClick={() => setStep(3)}
+                onClick={() => setStep(4)}
               >
                 次へ（理由入力）
               </Button>
@@ -299,12 +345,12 @@ export default function ParticipantWorkPage() {
         </Card>
       )}
 
-      {/* ===== Step 3: 理由・トレードオフ入力 ===== */}
-      {step === 3 && (
+      {/* ===== Step 4: 理由・トレードオフ入力 ===== */}
+      {step === 4 && (
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Step 3: 選んだ理由を書こう</CardTitle>
+              <CardTitle>Step 4: 選んだ理由を書こう</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {selectedIds.map((id, i) => (
@@ -386,22 +432,22 @@ export default function ParticipantWorkPage() {
           </Card>
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(2)}>
+            <Button variant="outline" onClick={() => setStep(3)}>
               戻る
             </Button>
-            <Button className="flex-1" size="lg" onClick={() => setStep(4)}>
+            <Button className="flex-1" size="lg" onClick={() => setStep(5)}>
               次へ（コンポーネント選択）
             </Button>
           </div>
         </div>
       )}
 
-      {/* ===== Step 4: コンポーネント選択 ===== */}
-      {step === 4 && (
+      {/* ===== Step 5: コンポーネント選択 ===== */}
+      {step === 5 && (
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Step 4: システム構成コンポーネントを選ぼう</CardTitle>
+              <CardTitle>Step 5: システム構成コンポーネントを選ぼう</CardTitle>
               <p className="text-sm text-muted-foreground">
                 このシステムに必要なコンポーネントを選んでください（複数選択可）
               </p>
@@ -417,14 +463,14 @@ export default function ParticipantWorkPage() {
           </Card>
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(3)}>
+            <Button variant="outline" onClick={() => setStep(4)}>
               戻る
             </Button>
             <Button
               className="flex-1"
               size="lg"
               disabled={componentIds.length === 0}
-              onClick={() => setStep(5)}
+              onClick={() => setStep(6)}
             >
               確認画面へ
             </Button>
@@ -432,12 +478,12 @@ export default function ParticipantWorkPage() {
         </div>
       )}
 
-      {/* ===== Step 5: 確認・提出 ===== */}
-      {step === 5 && (
+      {/* ===== Step 6: 確認・提出 ===== */}
+      {step === 6 && (
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Step 5: 入力内容の確認</CardTitle>
+              <CardTitle>Step 6: 入力内容の確認</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
               {/* メンバー */}
@@ -447,6 +493,26 @@ export default function ParticipantWorkPage() {
               </div>
 
               <Separator />
+
+              {/* 要件確認 */}
+              {requirements.filter((r) => r.question.trim()).length > 0 && (
+                <>
+                  <div className="space-y-3">
+                    <p className="text-sm font-semibold text-muted-foreground">確認した要件</p>
+                    {requirements
+                      .filter((r) => r.question.trim())
+                      .map((r, i) => (
+                        <div key={r.id} className="pl-3 border-l-2 border-blue-400">
+                          <p className="text-sm font-medium">Q{i + 1}. {r.question}</p>
+                          {r.answer && (
+                            <p className="text-sm text-muted-foreground">A{i + 1}. {r.answer}</p>
+                          )}
+                        </div>
+                      ))}
+                  </div>
+                  <Separator />
+                </>
+              )}
 
               {/* 選んだ特性 */}
               <div className="space-y-3">
@@ -536,7 +602,7 @@ export default function ParticipantWorkPage() {
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(4)}>
+            <Button variant="outline" onClick={() => setStep(5)}>
               戻る
             </Button>
             <Button

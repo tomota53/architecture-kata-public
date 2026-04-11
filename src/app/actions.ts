@@ -119,7 +119,7 @@ export async function getSessionDetail(sessionId: string) {
   // 各グループの提出状況を取得（コンポーネント情報含む）
   const { data: selections } = await supabase
     .from("selections")
-    .select("group_id, choice_1, choice_2, choice_3, component_ids, component_reason")
+    .select("group_id, choice_1, choice_2, choice_3, component_ids, component_reason, requirements")
     .eq("session_id", sessionId);
 
   const selectionByGroup = new Map(
@@ -133,6 +133,7 @@ export async function getSessionDetail(sessionId: string) {
       submitted: !!sel,
       choices: sel ? [sel.choice_1, sel.choice_2, sel.choice_3].filter(Boolean) : [],
       componentIds: (sel?.component_ids as string[] | null) ?? [],
+      requirements: (sel?.requirements as { id: string; question: string; answer: string }[] | null) ?? [],
     };
   });
 
@@ -176,6 +177,7 @@ export async function submitSelections(data: {
   discussionMemo: string;
   componentIds: string[];
   componentReason: string;
+  requirements: { id: string; question: string; answer: string }[];
 }) {
   const { error } = await supabase.from("selections").insert({
     group_id: data.groupId,
@@ -193,6 +195,7 @@ export async function submitSelections(data: {
     discussion_memo: data.discussionMemo || null,
     component_ids: data.componentIds.length > 0 ? data.componentIds : null,
     component_reason: data.componentReason || null,
+    requirements: data.requirements,
   });
 
   if (error) return { error: "提出に失敗しました" };
