@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getSummaryData } from "@/app/actions";
 import { ARCH_CHARACTERISTICS } from "@/lib/characteristics";
+import { ARCH_COMPONENTS, COMPONENT_CATEGORIES } from "@/lib/components-master";
 import { PrintButton } from "./print-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -107,6 +108,43 @@ export default async function SummaryPage({
                   )}
                 </div>
               ))}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* コンポーネント */}
+        {selection.component_ids && selection.component_ids.length > 0 && (
+          <Card className="print:shadow-none print:border">
+            <CardHeader>
+              <CardTitle>選択したシステムコンポーネント</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {COMPONENT_CATEGORIES.map((cat) => {
+                const selected = (selection.component_ids as string[])
+                  .map((id: string) => ARCH_COMPONENTS.find((c) => c.id === id))
+                  .filter((c) => c && c.category === cat.id);
+                if (selected.length === 0) return null;
+                return (
+                  <div key={cat.id}>
+                    <p className="text-sm font-semibold text-muted-foreground">
+                      {cat.label}
+                    </p>
+                    <ul className="list-disc list-inside text-sm mt-1 space-y-0.5">
+                      {selected.map((c) => (
+                        <li key={c!.id}>{c!.name}</li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+              {selection.component_reason && (
+                <div>
+                  <p className="text-sm font-semibold text-muted-foreground">理由</p>
+                  <p className="text-sm whitespace-pre-wrap mt-1">
+                    {selection.component_reason}
+                  </p>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

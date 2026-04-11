@@ -10,6 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { ARCH_CHARACTERISTICS } from "@/lib/characteristics";
+import { ARCH_COMPONENTS, COMPONENT_CATEGORIES } from "@/lib/components-master";
+import { ComponentSelector } from "@/components/ComponentSelector";
 import {
   getSessionByJoinCode,
   getGroupById,
@@ -63,6 +65,10 @@ export default function ParticipantWorkPage() {
   const [tradeoffs, setTradeoffs] = useState<string[]>([]);
   const [tradeoffReasons, setTradeoffReasons] = useState<Record<string, string>>({});
   const [discussionMemo, setDiscussionMemo] = useState("");
+
+  // Step 4: コンポーネント選択
+  const [componentIds, setComponentIds] = useState<string[]>([]);
+  const [componentReason, setComponentReason] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -124,6 +130,13 @@ export default function ParticipantWorkPage() {
     });
   };
 
+  // Step 4: コンポーネント選択ハンドラ
+  const toggleComponent = (id: string) => {
+    setComponentIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   // 提出処理
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -143,6 +156,8 @@ export default function ParticipantWorkPage() {
       tradeoff2: tradeoffs[1] || "",
       tradeoff2Reason: tradeoffReasons[tradeoffs[1]] || "",
       discussionMemo,
+      componentIds,
+      componentReason,
     });
 
     if (result.error) {
@@ -160,7 +175,7 @@ export default function ParticipantWorkPage() {
   // ステップインジケーター
   const StepIndicator = () => (
     <div className="flex justify-center gap-2 mb-6">
-      {[1, 2, 3, 4].map((s) => (
+      {[1, 2, 3, 4, 5].map((s) => (
         <div
           key={s}
           className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -287,7 +302,6 @@ export default function ParticipantWorkPage() {
       {/* ===== Step 3: 理由・トレードオフ入力 ===== */}
       {step === 3 && (
         <div className="space-y-6">
-          {/* 選んだ特性の理由 */}
           <Card>
             <CardHeader>
               <CardTitle>Step 3: 選んだ理由を書こう</CardTitle>
@@ -310,7 +324,6 @@ export default function ParticipantWorkPage() {
             </CardContent>
           </Card>
 
-          {/* 捨てた特性 */}
           <Card>
             <CardHeader>
               <CardTitle>あえて捨てた特性（最大2つ）</CardTitle>
@@ -358,7 +371,6 @@ export default function ParticipantWorkPage() {
             </CardContent>
           </Card>
 
-          {/* 議論メモ */}
           <Card>
             <CardHeader>
               <CardTitle>グループで一番議論になったこと</CardTitle>
@@ -378,18 +390,54 @@ export default function ParticipantWorkPage() {
               戻る
             </Button>
             <Button className="flex-1" size="lg" onClick={() => setStep(4)}>
+              次へ（コンポーネント選択）
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== Step 4: コンポーネント選択 ===== */}
+      {step === 4 && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Step 4: システム構成コンポーネントを選ぼう</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                このシステムに必要なコンポーネントを選んでください（複数選択可）
+              </p>
+            </CardHeader>
+            <CardContent>
+              <ComponentSelector
+                selectedIds={componentIds}
+                onToggle={toggleComponent}
+                reason={componentReason}
+                onReasonChange={setComponentReason}
+              />
+            </CardContent>
+          </Card>
+
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={() => setStep(3)}>
+              戻る
+            </Button>
+            <Button
+              className="flex-1"
+              size="lg"
+              disabled={componentIds.length === 0}
+              onClick={() => setStep(5)}
+            >
               確認画面へ
             </Button>
           </div>
         </div>
       )}
 
-      {/* ===== Step 4: 確認・提出 ===== */}
-      {step === 4 && (
+      {/* ===== Step 5: 確認・提出 ===== */}
+      {step === 5 && (
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Step 4: 入力内容の確認</CardTitle>
+              <CardTitle>Step 5: 入力内容の確認</CardTitle>
             </CardHeader>
             <CardContent className="space-y-5">
               {/* メンバー */}
@@ -439,20 +487,56 @@ export default function ParticipantWorkPage() {
 
               {/* 議論メモ */}
               {discussionMemo && (
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">
-                    議論になったこと
-                  </p>
-                  <p className="text-sm whitespace-pre-wrap">{discussionMemo}</p>
-                </div>
+                <>
+                  <div>
+                    <p className="text-sm font-semibold text-muted-foreground">
+                      議論になったこと
+                    </p>
+                    <p className="text-sm whitespace-pre-wrap">{discussionMemo}</p>
+                  </div>
+                  <Separator />
+                </>
               )}
+
+              {/* コンポーネント */}
+              <div className="space-y-3">
+                <p className="text-sm font-semibold text-muted-foreground">
+                  システム構成コンポーネント
+                </p>
+                {COMPONENT_CATEGORIES.map((cat) => {
+                  const selected = componentIds
+                    .map((id) => ARCH_COMPONENTS.find((c) => c.id === id))
+                    .filter((c) => c && c.category === cat.id);
+                  if (selected.length === 0) return null;
+                  return (
+                    <div key={cat.id}>
+                      <p className="text-xs font-medium text-muted-foreground">
+                        {cat.label}
+                      </p>
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {selected.map((c) => (
+                          <Badge key={c!.id} variant="secondary" className="text-xs">
+                            {c!.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+                {componentReason && (
+                  <div className="mt-2">
+                    <p className="text-xs font-medium text-muted-foreground">理由</p>
+                    <p className="text-sm whitespace-pre-wrap">{componentReason}</p>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(3)}>
+            <Button variant="outline" onClick={() => setStep(4)}>
               戻る
             </Button>
             <Button

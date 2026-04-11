@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { getSessionDetail, finishSession } from "@/app/actions";
+import { ARCH_CHARACTERISTICS } from "@/lib/characteristics";
+import { ARCH_COMPONENTS, COMPONENT_CATEGORIES } from "@/lib/components-master";
 
 type SessionDetail = {
   session: {
@@ -28,6 +30,8 @@ type SessionDetail = {
     name: string;
     member_names: string[] | null;
     submitted: boolean;
+    choices: string[];
+    componentIds: string[];
   }[];
 };
 
@@ -44,6 +48,7 @@ export default function FacilitatorPage() {
 
   const [data, setData] = useState<SessionDetail | null>(null);
   const [showProblem, setShowProblem] = useState(false);
+  const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [finishing, setFinishing] = useState(false);
 
   const fetchData = useCallback(async () => {
@@ -140,38 +145,93 @@ export default function FacilitatorPage() {
         <CardContent>
           <div className="space-y-3">
             {groups.map((group) => (
-              <div
-                key={group.id}
-                className="flex items-center justify-between p-3 border rounded-lg"
-              >
-                <div>
-                  <p className="font-medium">{group.name}</p>
-                  {group.member_names && group.member_names.length > 0 && (
-                    <p className="text-sm text-muted-foreground">
-                      {group.member_names.join("、")}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <Badge
-                    variant={group.submitted ? "default" : "outline"}
-                  >
-                    {group.submitted ? "提出済み" : "未提出"}
-                  </Badge>
-                  {group.submitted && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() =>
-                        router.push(
-                          `/session/${session.join_code}/group/${group.id}/summary`
-                        )
-                      }
+              <div key={group.id} className="border rounded-lg">
+                <div className="flex items-center justify-between p-3">
+                  <div>
+                    <p className="font-medium">{group.name}</p>
+                    {group.member_names && group.member_names.length > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        {group.member_names.join("、")}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Badge
+                      variant={group.submitted ? "default" : "outline"}
                     >
-                      回答を見る
-                    </Button>
-                  )}
+                      {group.submitted ? "提出済み" : "未提出"}
+                    </Badge>
+                    {group.submitted && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            setExpandedGroup(
+                              expandedGroup === group.id ? null : group.id
+                            )
+                          }
+                        >
+                          {expandedGroup === group.id ? "閉じる" : "概要"}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() =>
+                            router.push(
+                              `/session/${session.join_code}/group/${group.id}/summary`
+                            )
+                          }
+                        >
+                          詳細
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </div>
+                {/* 展開表示 */}
+                {group.submitted && expandedGroup === group.id && (
+                  <div className="px-3 pb-3 space-y-3 border-t pt-3">
+                    {/* 選んだ特性 */}
+                    {group.choices.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">選んだ特性</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {group.choices.map((id, i) => {
+                            const name = ARCH_CHARACTERISTICS.find((c) => c.id === id)?.name ?? id;
+                            return (
+                              <Badge key={id} variant="secondary" className="text-xs">
+                                {i + 1}位: {name}
+                              </Badge>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {/* コンポーネント */}
+                    {group.componentIds.length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-1">コンポーネント</p>
+                        {COMPONENT_CATEGORIES.map((cat) => {
+                          const selected = group.componentIds
+                            .map((id) => ARCH_COMPONENTS.find((c) => c.id === id))
+                            .filter((c) => c && c.category === cat.id);
+                          if (selected.length === 0) return null;
+                          return (
+                            <div key={cat.id} className="mb-1">
+                              <span className="text-xs text-muted-foreground">{cat.label}: </span>
+                              {selected.map((c) => (
+                                <Badge key={c!.id} variant="outline" className="text-xs mr-1">
+                                  {c!.name}
+                                </Badge>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
           </div>

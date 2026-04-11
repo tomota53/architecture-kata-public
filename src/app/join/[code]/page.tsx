@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { getSessionByJoinCode, getGroupsBySessionId } from "@/app/actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";

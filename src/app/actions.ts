@@ -116,20 +116,25 @@ export async function getSessionDetail(sessionId: string) {
     .eq("session_id", sessionId)
     .order("name");
 
-  // 各グループの提出状況を取得
+  // 各グループの提出状況を取得（コンポーネント情報含む）
   const { data: selections } = await supabase
     .from("selections")
-    .select("group_id")
+    .select("group_id, choice_1, choice_2, choice_3, component_ids, component_reason")
     .eq("session_id", sessionId);
 
-  const submittedGroupIds = new Set(
-    (selections ?? []).map((s) => s.group_id)
+  const selectionByGroup = new Map(
+    (selections ?? []).map((s) => [s.group_id, s])
   );
 
-  const groupsWithStatus = (groups ?? []).map((g) => ({
-    ...g,
-    submitted: submittedGroupIds.has(g.id),
-  }));
+  const groupsWithStatus = (groups ?? []).map((g) => {
+    const sel = selectionByGroup.get(g.id);
+    return {
+      ...g,
+      submitted: !!sel,
+      choices: sel ? [sel.choice_1, sel.choice_2, sel.choice_3].filter(Boolean) : [],
+      componentIds: (sel?.component_ids as string[] | null) ?? [],
+    };
+  });
 
   return { session, problem, groups: groupsWithStatus };
 }
@@ -169,6 +174,8 @@ export async function submitSelections(data: {
   tradeoff2: string;
   tradeoff2Reason: string;
   discussionMemo: string;
+  componentIds: string[];
+  componentReason: string;
 }) {
   const { error } = await supabase.from("selections").insert({
     group_id: data.groupId,
@@ -184,6 +191,8 @@ export async function submitSelections(data: {
     tradeoff_2: data.tradeoff2 || null,
     tradeoff_2_reason: data.tradeoff2Reason || null,
     discussion_memo: data.discussionMemo || null,
+    component_ids: data.componentIds.length > 0 ? data.componentIds : null,
+    component_reason: data.componentReason || null,
   });
 
   if (error) return { error: "提出に失敗しました" };
