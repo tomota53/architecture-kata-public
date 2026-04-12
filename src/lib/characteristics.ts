@@ -10,7 +10,8 @@ export const ARCH_CHARACTERISTICS = [
   { id: 'extensibility',   name: '拡張性',          description: '新機能を追加しやすいこと' },
   { id: 'observability',   name: '監視容易性',       description: 'システムの状態を把握しやすいこと' },
   { id: 'cost',            name: 'コスト効率',       description: '費用対効果が高いこと' },
-  { id: 'compliance',      name: '法令遵守',         description: '規制・法律に対応できていること' },
+  { id: 'auditability',    name: '監査可能性',       description: '操作履歴や変更を追跡・証明できること' },
+  { id: 'fault_tolerance', name: '耐障害性',        description: '一部が壊れても全体が止まらないこと' },
 ] as const;
 
 export type CharacteristicId = (typeof ARCH_CHARACTERISTICS)[number]['id'];

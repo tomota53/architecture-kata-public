@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
 
 export default function Home() {
   const router = useRouter();
@@ -68,6 +69,15 @@ export default function Home() {
           </Button>
         </CardContent>
       </Card>
+
+      <div className="text-center">
+        <Link
+          href="/about"
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          このアプリについて &rarr;
+        </Link>
+      </div>
     </div>
   );
 }
