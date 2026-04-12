@@ -28,30 +28,42 @@ export default async function JoinPage({
 
   return (
     <div className="max-w-md mx-auto space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold">{session.title}</h1>
-        <p className="text-muted-foreground">グループを選んでください</p>
+      <div
+        className="text-center space-y-2 p-6 rounded-xl"
+        style={{ background: "linear-gradient(135deg, rgba(6,182,212,0.05), rgba(99,102,241,0.08))" }}
+      >
+        <p className="text-xs text-muted-foreground uppercase tracking-wider">セッション</p>
+        <h1
+          className="text-2xl font-bold bg-clip-text text-transparent"
+          style={{ backgroundImage: "linear-gradient(135deg, #1e1b4b, #6366f1)" }}
+        >
+          {session.title}
+        </h1>
+        <p className="text-sm text-muted-foreground">参加するグループを選んでください</p>
       </div>
 
       <div className="space-y-3">
         {groups.map((group) => (
-          <Link
-            key={group.id}
-            href={`/session/${code}/group/${group.id}`}
-          >
-            <Card className="hover:bg-accent transition-colors cursor-pointer">
-              <CardHeader>
-                <CardTitle>{group.name}</CardTitle>
+          <Link key={group.id} href={`/session/${code}/group/${group.id}`}>
+            <Card className="hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer border-0 shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <span
+                    className="w-7 h-7 rounded-full text-xs text-white flex items-center justify-center shrink-0"
+                    style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+                  >
+                    {group.name.slice(-1)}
+                  </span>
+                  {group.name}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 {group.member_names && group.member_names.length > 0 ? (
                   <p className="text-sm text-muted-foreground">
-                    メンバー: {group.member_names.join("、")}
+                    {group.member_names.join("、")}
                   </p>
                 ) : (
-                  <p className="text-sm text-muted-foreground">
-                    メンバー未登録
-                  </p>
+                  <p className="text-sm text-muted-foreground italic">メンバー未登録</p>
                 )}
               </CardContent>
             </Card>

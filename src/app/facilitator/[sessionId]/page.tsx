@@ -85,13 +85,20 @@ export default function FacilitatorPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {/* セッション情報 */}
-      <div className="text-center space-y-3">
+      <div className="text-center space-y-4">
         <h1 className="text-2xl font-bold">{session.title}</h1>
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">参加コード</p>
-          <p className="text-5xl font-mono font-bold tracking-[0.3em]">
+        <div
+          className="rounded-xl p-6 space-y-2"
+          style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.1))" }}
+        >
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">参加コード</p>
+          <p
+            className="text-5xl font-mono font-bold tracking-[0.3em] bg-clip-text text-transparent"
+            style={{ backgroundImage: "linear-gradient(135deg, #4f46e5, #7c3aed)" }}
+          >
             {session.join_code}
           </p>
+          <p className="text-xs text-muted-foreground">このコードを参加者に共有してください</p>
         </div>
         <Badge variant={session.status === "active" ? "default" : "secondary"}>
           {session.status === "active" ? "進行中" : "終了"}

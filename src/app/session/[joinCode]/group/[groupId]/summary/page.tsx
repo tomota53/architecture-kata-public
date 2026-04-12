@@ -4,11 +4,41 @@ import { ARCH_CHARACTERISTICS } from "@/lib/characteristics";
 import { ARCH_COMPONENTS, COMPONENT_CATEGORIES } from "@/lib/components-master";
 import { PrintButton } from "./print-button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 
 function getCharName(id: string) {
   return ARCH_CHARACTERISTICS.find((c) => c.id === id)?.name ?? id;
+}
+
+function ReportSection({
+  number,
+  title,
+  subtitle,
+  children,
+}: {
+  number: string;
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="rounded-xl bg-card border shadow-sm p-6 space-y-4 print:shadow-none print:break-inside-avoid">
+      <div className="flex items-baseline gap-3 pb-3 border-b">
+        <span
+          className="text-3xl font-bold bg-clip-text text-transparent print:text-black"
+          style={{ backgroundImage: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+        >
+          {number}
+        </span>
+        <div>
+          <h3 className="text-lg font-bold leading-tight">{title}</h3>
+          <p className="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase">
+            {subtitle}
+          </p>
+        </div>
+      </div>
+      {children}
+    </section>
+  );
 }
 
 export default async function SummaryPage({
@@ -24,15 +54,19 @@ export default async function SummaryPage({
   const { session, group, selection, problem } = data;
 
   const choices = [
-    { rank: "1位", name: selection.choice_1, reason: selection.choice_1_reason },
-    { rank: "2位", name: selection.choice_2, reason: selection.choice_2_reason },
-    { rank: "3位", name: selection.choice_3, reason: selection.choice_3_reason },
+    { name: selection.choice_1, reason: selection.choice_1_reason },
+    { name: selection.choice_2, reason: selection.choice_2_reason },
+    { name: selection.choice_3, reason: selection.choice_3_reason },
   ].filter((c) => c.name);
 
   const tradeoffs = [
     { name: selection.tradeoff_1, reason: selection.tradeoff_1_reason },
     { name: selection.tradeoff_2, reason: selection.tradeoff_2_reason },
   ].filter((t) => t.name);
+
+  const requirements =
+    (selection.requirements as { id: string; question: string; answer: string }[] | null) ?? [];
+  const componentIds = (selection.component_ids as string[] | null) ?? [];
 
   return (
     <>
@@ -46,150 +80,170 @@ export default async function SummaryPage({
       `}</style>
 
       <div className="max-w-2xl mx-auto space-y-6 print:space-y-4">
-        {/* ヘッダー */}
-        <div className="text-center space-y-2">
-          <p className="text-sm text-muted-foreground print:text-gray-500">
-            {session.title} / {problem?.title}
+        {/* レポートヘッダー */}
+        <div
+          className="text-center space-y-3 p-8 rounded-xl print:p-4 print:bg-transparent print:border"
+          style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.1))" }}
+        >
+          <p className="text-xs font-semibold tracking-widest uppercase text-muted-foreground print:text-gray-500">
+            Architecture Design Report
           </p>
-          <h1 className="text-2xl font-bold">{group.name} 発表サマリー</h1>
-          {group.member_names && group.member_names.length > 0 && (
-            <p className="text-muted-foreground">
-              メンバー: {group.member_names.join("、")}
-            </p>
-          )}
+          <h1
+            className="text-3xl font-bold bg-clip-text text-transparent print:text-black"
+            style={{ backgroundImage: "linear-gradient(135deg, #1e1b4b, #6366f1)" }}
+          >
+            {group.name} 設計レポート
+          </h1>
+          <div className="text-sm text-muted-foreground space-y-1">
+            <p className="font-medium">{problem?.title}</p>
+            <p className="text-xs">{session.title}</p>
+            {group.member_names && group.member_names.length > 0 && (
+              <p className="text-xs">メンバー: {group.member_names.join("、")}</p>
+            )}
+          </div>
         </div>
 
-        <Separator />
-
-        {/* 確認した要件 */}
-        {selection.requirements &&
-          Array.isArray(selection.requirements) &&
-          (selection.requirements as { id: string; question: string; answer: string }[]).length > 0 && (
-          <Card className="print:shadow-none print:border">
-            <CardHeader>
-              <CardTitle>確認した要件</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {(selection.requirements as { id: string; question: string; answer: string }[]).map(
-                (r, i) => (
-                  <div key={r.id} className="pl-4 border-l-2 border-blue-400">
-                    <p className="font-medium text-sm">Q{i + 1}. {r.question}</p>
-                    {r.answer && (
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        A{i + 1}. {r.answer}
-                      </p>
-                    )}
-                  </div>
-                )
-              )}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 選んだ特性 */}
-        <Card className="print:shadow-none print:border">
-          <CardHeader>
-            <CardTitle>選んだアーキテクチャ特性</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {choices.map((c) => (
-              <div
-                key={c.rank}
-                className="flex gap-4 items-start"
-              >
-                <Badge
-                  variant="default"
-                  className="shrink-0 mt-0.5 min-w-[3rem] justify-center"
+        {/* 01. 確認した要件 */}
+        {requirements.length > 0 && (
+          <ReportSection number="01" title="確認した要件" subtitle="REQUIREMENTS">
+            <div className="space-y-4">
+              {requirements.map((r, i) => (
+                <div
+                  key={r.id}
+                  className="rounded-lg p-4 bg-muted/50 border-l-4 print:bg-transparent print:border print:border-gray-300"
+                  style={{ borderLeftColor: "#6366f1" }}
                 >
-                  {c.rank}
-                </Badge>
-                <div>
-                  <p className="font-semibold">{getCharName(c.name!)}</p>
-                  {c.reason && (
-                    <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
-                      {c.reason}
+                  <p className="text-sm font-semibold mb-1">
+                    <span className="text-primary mr-2 print:text-black">Q{i + 1}.</span>
+                    {r.question}
+                  </p>
+                  {r.answer && (
+                    <p className="text-sm text-muted-foreground pl-6">
+                      <span className="mr-2">A.</span>
+                      {r.answer}
                     </p>
                   )}
                 </div>
+              ))}
+            </div>
+          </ReportSection>
+        )}
+
+        {/* 02. 選んだ特性 */}
+        <ReportSection
+          number="02"
+          title="選んだアーキテクチャ特性"
+          subtitle="CHARACTERISTICS"
+        >
+          <div className="space-y-3">
+            {choices.map((c, i) => (
+              <div
+                key={c.name}
+                className="rounded-lg p-4 border-l-4 bg-muted/50 print:bg-transparent print:border print:border-gray-300"
+                style={{ borderLeftColor: "#6366f1" }}
+              >
+                <div className="flex items-center gap-3 mb-2">
+                  <div
+                    className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0 print:bg-gray-700"
+                    style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
+                  >
+                    {i + 1}
+                  </div>
+                  <h4 className="font-bold text-base">{getCharName(c.name!)}</h4>
+                </div>
+                {c.reason && (
+                  <p className="text-sm text-muted-foreground leading-relaxed pl-12 whitespace-pre-wrap">
+                    {c.reason}
+                  </p>
+                )}
               </div>
             ))}
-          </CardContent>
-        </Card>
+          </div>
+        </ReportSection>
 
-        {/* 捨てた特性 */}
+        {/* 03. 捨てた特性 */}
         {tradeoffs.length > 0 && (
-          <Card className="print:shadow-none print:border">
-            <CardHeader>
-              <CardTitle>あえて捨てた特性</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+          <ReportSection number="03" title="あえて捨てた特性" subtitle="TRADE-OFFS">
+            <div className="space-y-3">
               {tradeoffs.map((t, i) => (
-                <div key={i} className="pl-4 border-l-2 border-destructive">
-                  <p className="font-semibold">{getCharName(t.name!)}</p>
+                <div
+                  key={i}
+                  className="rounded-lg p-4 border-l-4 bg-muted/50 print:bg-transparent print:border print:border-gray-300"
+                  style={{ borderLeftColor: "#f43f5e" }}
+                >
+                  <h4 className="font-bold text-base mb-2 text-destructive print:text-black">
+                    ✕ {getCharName(t.name!)}
+                  </h4>
                   {t.reason && (
-                    <p className="text-sm text-muted-foreground mt-1 whitespace-pre-wrap">
+                    <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
                       {t.reason}
                     </p>
                   )}
                 </div>
               ))}
-            </CardContent>
-          </Card>
+            </div>
+          </ReportSection>
         )}
 
-        {/* コンポーネント */}
-        {selection.component_ids && selection.component_ids.length > 0 && (
-          <Card className="print:shadow-none print:border">
-            <CardHeader>
-              <CardTitle>選択したシステムコンポーネント</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+        {/* 04. 議論メモ */}
+        {selection.discussion_memo && (
+          <ReportSection number="04" title="議論のハイライト" subtitle="DISCUSSION">
+            <div
+              className="rounded-lg p-4 bg-muted/50 border-l-4 print:bg-transparent print:border print:border-gray-300"
+              style={{ borderLeftColor: "#06b6d4" }}
+            >
+              <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                {selection.discussion_memo}
+              </p>
+            </div>
+          </ReportSection>
+        )}
+
+        {/* 05. システム構成 */}
+        {componentIds.length > 0 && (
+          <ReportSection number="05" title="システム構成" subtitle="SYSTEM COMPONENTS">
+            <div className="space-y-4">
               {COMPONENT_CATEGORIES.map((cat) => {
-                const selected = (selection.component_ids as string[])
-                  .map((id: string) => ARCH_COMPONENTS.find((c) => c.id === id))
+                const selected = componentIds
+                  .map((id) => ARCH_COMPONENTS.find((c) => c.id === id))
                   .filter((c) => c && c.category === cat.id);
                 if (selected.length === 0) return null;
                 return (
                   <div key={cat.id}>
-                    <p className="text-sm font-semibold text-muted-foreground">
+                    <h4 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                      <span
+                        className="w-1 h-4 rounded"
+                        style={{ background: "linear-gradient(180deg, #6366f1, #8b5cf6)" }}
+                      ></span>
                       {cat.label}
-                    </p>
-                    <ul className="list-disc list-inside text-sm mt-1 space-y-0.5">
+                    </h4>
+                    <div className="flex flex-wrap gap-2 pl-3">
                       {selected.map((c) => (
-                        <li key={c!.id}>{c!.name}</li>
+                        <Badge key={c!.id} variant="secondary" className="text-xs">
+                          {c!.name}
+                        </Badge>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 );
               })}
               {selection.component_reason && (
-                <div>
-                  <p className="text-sm font-semibold text-muted-foreground">理由</p>
-                  <p className="text-sm whitespace-pre-wrap mt-1">
+                <div
+                  className="rounded-lg p-4 bg-muted/50 border-l-4 mt-4 print:bg-transparent print:border print:border-gray-300"
+                  style={{ borderLeftColor: "#06b6d4" }}
+                >
+                  <p className="text-xs font-semibold text-muted-foreground mb-1">設計の意図</p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">
                     {selection.component_reason}
                   </p>
                 </div>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </ReportSection>
         )}
 
-        {/* 議論メモ */}
-        {selection.discussion_memo && (
-          <Card className="print:shadow-none print:border">
-            <CardHeader>
-              <CardTitle>グループで一番議論になったこと</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm whitespace-pre-wrap">
-                {selection.discussion_memo}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* 印刷ボタン（印刷時非表示） */}
-        <PrintButton />
+        {/* ナビゲーション・印刷ボタン（印刷時非表示） */}
+        <PrintButton joinCode={joinCode} />
       </div>
     </>
   );
