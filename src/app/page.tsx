@@ -82,6 +82,17 @@ export default function Home() {
         </CardContent>
       </Card>
 
+      <div
+        className="rounded-xl border px-4 py-3 text-xs text-muted-foreground leading-relaxed"
+        style={{ backgroundColor: "oklch(0.98 0.02 250)", borderColor: "oklch(0.9 0.04 250)" }}
+      >
+        <p className="font-medium text-foreground mb-1">💡 一人で学習する場合</p>
+        <p>
+          まず「セッションを作成する」からファシリテーターとしてお題を設定し、発行された参加コードを控えてください。
+          次に別タブで本ページを開き、参加者として参加コードを入力するとワークを開始できます。
+        </p>
+      </div>
+
       <div className="text-center">
         <Link
           href="/about"
