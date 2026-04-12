@@ -217,6 +217,12 @@ export default function ParticipantWorkPage() {
 
       <StepIndicator />
 
+      {/* お題表示（全ステップ共通） */}
+      <div className="p-3 bg-muted rounded-md">
+        <p className="text-sm font-semibold">{problem.title}</p>
+        <p className="text-sm text-muted-foreground mt-1">{problem.description}</p>
+      </div>
+
       {/* ===== Step 1: メンバー名入力 ===== */}
       {step === 1 && (
         <Card>
@@ -224,13 +230,6 @@ export default function ParticipantWorkPage() {
             <CardTitle>Step 1: グループ参加</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="p-3 bg-muted rounded-md">
-              <p className="text-sm font-semibold">{problem.title}</p>
-              <p className="text-sm text-muted-foreground mt-1">{problem.description}</p>
-            </div>
-
-            <Separator />
-
             <div className="space-y-3">
               <Label>メンバー名（最大5人）</Label>
               {memberNames.map((name, i) => (

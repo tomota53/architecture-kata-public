@@ -65,11 +65,62 @@ export async function createSession(formData: FormData) {
 export async function getKataProblems() {
   const { data, error } = await supabase
     .from("kata_problems")
-    .select("id, title, description, difficulty")
-    .order("difficulty");
+    .select("id, title, description, difficulty, is_preset");
 
   if (error) return [];
-  return data;
+
+  const order: Record<string, number> = { easy: 0, medium: 1, hard: 2 };
+  return [...(data ?? [])].sort(
+    (a, b) => (order[a.difficulty] ?? 9) - (order[b.difficulty] ?? 9)
+  );
+}
+
+export async function createKataProblem(data: {
+  title: string;
+  description: string;
+  difficulty: string;
+}) {
+  const { data: problem, error } = await supabase
+    .from("kata_problems")
+    .insert({
+      title: data.title,
+      description: data.description,
+      difficulty: data.difficulty,
+    })
+    .select()
+    .single();
+
+  if (error || !problem) return { error: "お題の作成に失敗しました" };
+  return { problemId: problem.id };
+}
+
+export async function updateKataProblem(
+  problemId: string,
+  data: { title: string; description: string; difficulty: string }
+) {
+  const { error } = await supabase
+    .from("kata_problems")
+    .update({
+      title: data.title,
+      description: data.description,
+      difficulty: data.difficulty,
+    })
+    .eq("id", problemId)
+    .eq("is_preset", false);
+
+  if (error) return { error: "お題の更新に失敗しました" };
+  return { success: true };
+}
+
+export async function deleteKataProblem(problemId: string) {
+  const { error } = await supabase
+    .from("kata_problems")
+    .delete()
+    .eq("id", problemId)
+    .eq("is_preset", false);
+
+  if (error) return { error: "お題の削除に失敗しました" };
+  return { success: true };
 }
 
 export async function getSessionByJoinCode(joinCode: string) {
