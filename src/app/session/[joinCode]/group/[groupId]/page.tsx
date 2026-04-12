@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { ARCH_CHARACTERISTICS } from "@/lib/characteristics";
 import { ARCH_COMPONENTS, COMPONENT_CATEGORIES } from "@/lib/components-master";
 import { ComponentSelector } from "@/components/ComponentSelector";
