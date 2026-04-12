@@ -31,7 +31,7 @@
 
 ## アクセス
 
-公開 URL: （Vercel デプロイ後に追記）
+公開 URL: https://architecture-kata-public.vercel.app
 
 ## 開発の動機
 
