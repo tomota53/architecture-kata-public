@@ -78,6 +78,12 @@ export default function RootLayout({
             </Link>
             <nav className="flex items-center gap-4">
               <Link
+                href="/learn"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                学ぶ
+              </Link>
+              <Link
                 href="/about"
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
@@ -134,6 +140,7 @@ export default function RootLayout({
                 {" "}へ
               </div>
               <nav className="flex items-center gap-4 text-sm text-muted-foreground">
+                <Link href="/learn" className="hover:text-foreground transition-colors">学ぶ</Link>
                 <Link href="/about" className="hover:text-foreground transition-colors">About</Link>
                 <Link href="/privacy" className="hover:text-foreground transition-colors">プライバシー</Link>
                 <Link href="/terms" className="hover:text-foreground transition-colors">利用規約</Link>

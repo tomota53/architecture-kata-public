@@ -82,6 +82,15 @@ export default function Home() {
         </CardContent>
       </Card>
 
+      <div className="text-center">
+        <Link
+          href="/learn"
+          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          📖 まずは座学で基礎を学ぶ &rarr;
+        </Link>
+      </div>
+
       <div
         className="rounded-xl border px-4 py-3 text-xs text-muted-foreground leading-relaxed"
         style={{ backgroundColor: "oklch(0.98 0.02 250)", borderColor: "oklch(0.9 0.04 250)" }}
