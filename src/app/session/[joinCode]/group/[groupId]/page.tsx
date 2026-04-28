@@ -190,34 +190,39 @@ export default function ParticipantWorkPage() {
     setSubmitting(true);
     setError("");
 
-    const filledReqs = requirements.filter((r) => r.question.trim() !== "");
+    try {
+      const filledReqs = requirements.filter((r) => r.question.trim() !== "");
 
-    const result = await submitSelections({
-      groupId: group.id,
-      sessionId: session.id,
-      choice1: selectedIds[0] || "",
-      choice1Reason: reasons[selectedIds[0]] || "",
-      choice2: selectedIds[1] || "",
-      choice2Reason: reasons[selectedIds[1]] || "",
-      choice3: selectedIds[2] || "",
-      choice3Reason: reasons[selectedIds[2]] || "",
-      tradeoff1: tradeoffs[0] || "",
-      tradeoff1Reason: tradeoffReasons[tradeoffs[0]] || "",
-      tradeoff2: tradeoffs[1] || "",
-      tradeoff2Reason: tradeoffReasons[tradeoffs[1]] || "",
-      discussionMemo,
-      componentIds,
-      componentReason,
-      requirements: filledReqs,
-    });
+      const result = await submitSelections({
+        groupId: group.id,
+        sessionId: session.id,
+        choice1: selectedIds[0] || "",
+        choice1Reason: reasons[selectedIds[0]] || "",
+        choice2: selectedIds[1] || "",
+        choice2Reason: reasons[selectedIds[1]] || "",
+        choice3: selectedIds[2] || "",
+        choice3Reason: reasons[selectedIds[2]] || "",
+        tradeoff1: tradeoffs[0] || "",
+        tradeoff1Reason: tradeoffReasons[tradeoffs[0]] || "",
+        tradeoff2: tradeoffs[1] || "",
+        tradeoff2Reason: tradeoffReasons[tradeoffs[1]] || "",
+        discussionMemo,
+        componentIds,
+        componentReason,
+        requirements: filledReqs,
+      });
 
-    if (result.error) {
-      setError(result.error);
+      if (result.error) {
+        setError(result.error);
+        setSubmitting(false);
+        return;
+      }
+
+      router.push(`/session/${joinCode}/group/${groupId}/summary`);
+    } catch (e) {
+      setError(`提出中にエラーが発生しました: ${e instanceof Error ? e.message : "不明なエラー"}`);
       setSubmitting(false);
-      return;
     }
-
-    router.push(`/session/${joinCode}/group/${groupId}/summary`);
   };
 
   const getCharName = (id: string) =>

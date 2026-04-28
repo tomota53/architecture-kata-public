@@ -202,7 +202,7 @@ export async function submitSelections(data: {
     requirements: data.requirements,
   });
 
-  if (error) return { error: "提出に失敗しました" };
+  if (error) return { error: `提出に失敗しました: ${error.message}` };
   return { success: true };
 }
 
