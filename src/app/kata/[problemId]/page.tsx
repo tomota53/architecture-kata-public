@@ -16,7 +16,7 @@ import { CharacteristicsIllustration } from "@/components/illustrations/Characte
 import { SystemIllustration } from "@/components/illustrations/SystemIllustration";
 import { RequirementsIllustration } from "@/components/illustrations/RequirementsIllustration";
 import { TradeoffIllustration } from "@/components/illustrations/TradeoffIllustration";
-import { getKataProblemById, submitReport } from "@/app/actions";
+import { getKataProblemById, submitReport, generateShareCode } from "@/app/actions";
 
 type ProblemInfo = {
   id: string;
@@ -260,14 +260,29 @@ export default function KataWorkPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="shareCode">共有コード（任意）</Label>
-              <Input
-                id="shareCode"
-                placeholder="例: KENSHU2026"
-                value={shareCode}
-                onChange={(e) => setShareCode(e.target.value)}
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="shareCode"
+                  placeholder="例: X7K9-M2PF"
+                  value={shareCode}
+                  onChange={(e) => setShareCode(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const result = await generateShareCode();
+                    if (result.code) setShareCode(result.code);
+                  }}
+                >
+                  自動生成
+                </Button>
+              </div>
               <p className="text-xs text-muted-foreground">
-                研修担当者から共有コードを受け取っている場合に入力してください。管理者がレポートを一覧で確認できるようになります。
+                研修担当者から共有コードを受け取っている場合はそれを入力してください。
+                新しく発行する場合は「自動生成」を押してください。管理者がレポートを一覧で確認できるようになります。
               </p>
             </div>
 

@@ -37,6 +37,32 @@ export async function getKataProblemById(problemId: string) {
   }
 }
 
+// ─── 共有コード生成 ───
+
+export async function generateShareCode(): Promise<{ code?: string; error?: string }> {
+  try {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    for (let attempt = 0; attempt < 5; attempt++) {
+      let code = "";
+      for (let i = 0; i < 8; i++) {
+        code += chars[Math.floor(Math.random() * chars.length)];
+      }
+      // 4文字-4文字の形式にする
+      const formatted = `${code.slice(0, 4)}-${code.slice(4)}`;
+
+      const { count } = await supabase
+        .from("reports")
+        .select("id", { count: "exact", head: true })
+        .eq("share_code", formatted);
+
+      if (count === 0) return { code: formatted };
+    }
+    return { error: "共有コードの生成に失敗しました。もう一度お試しください。" };
+  } catch {
+    return { error: "共有コードの生成に失敗しました。" };
+  }
+}
+
 // ─── レポート提出 ───
 
 export async function submitReport(data: {
