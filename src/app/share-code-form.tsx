@@ -36,7 +36,7 @@ export function ShareCodeForm() {
         <p className="text-xs text-muted-foreground">
           共有コードを入力すると、そのコードで提出されたレポートを一覧表示できます。
         </p>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             placeholder="共有コードを入力"
             value={code}
@@ -48,6 +48,7 @@ export function ShareCodeForm() {
             variant="outline"
             disabled={!code.trim()}
             onClick={handleSubmit}
+            className="sm:w-auto w-full"
           >
             表示
           </Button>

@@ -259,7 +259,12 @@ export default async function ReportPage({
           <p className="mt-1">このURLをブックマークしておくと、いつでもレポートにアクセスできます。</p>
         </div>
 
-        <PrintButton shareCode={report.share_code} />
+        <PrintButton
+          shareCode={report.share_code}
+          kataProblemId={report.kata_problem_id}
+          reportId={report.id}
+          status={report.status}
+        />
       </div>
     </>
   );

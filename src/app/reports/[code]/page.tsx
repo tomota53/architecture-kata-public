@@ -78,7 +78,7 @@ export default async function ReportsPage({
                       >
                         {r.userName.slice(0, 1)}
                       </span>
-                      {r.userName}
+                      <span className="truncate">{r.userName}</span>
                     </span>
                     <Badge variant="outline" className="text-xs shrink-0">
                       レポート

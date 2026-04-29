@@ -242,10 +242,13 @@ export default function KataWorkPage() {
     );
   };
 
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
+
   const handleRequirementsNext = () => {
     const filledReqs = requirements.filter((r) => r.question.trim() !== "");
     if (filledReqs.length === 0) {
-      if (!confirm("要件確認をスキップしますか？スキップしても次のステップに進めます。")) return;
+      setShowSkipConfirm(true);
+      return;
     }
     goToStep(3);
   };
@@ -440,6 +443,19 @@ export default function KataWorkPage() {
               <RequirementsEditor value={requirements} onChange={setRequirements} />
             </CardContent>
           </Card>
+          {showSkipConfirm && (
+            <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-4 py-3 space-y-2">
+              <p className="text-sm">要件確認をスキップしますか？スキップしても次のステップに進めます。</p>
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" onClick={() => setShowSkipConfirm(false)}>
+                  戻って入力する
+                </Button>
+                <Button size="sm" onClick={() => { setShowSkipConfirm(false); goToStep(3); }}>
+                  スキップして次へ
+                </Button>
+              </div>
+            </div>
+          )}
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => goToStep(1)}>戻る</Button>
             <Button variant="outline" disabled={saving} onClick={handleSave}>
