@@ -47,7 +47,6 @@ export async function generateShareCode(): Promise<{ code?: string; error?: stri
       for (let i = 0; i < 8; i++) {
         code += chars[Math.floor(Math.random() * chars.length)];
       }
-      // 4文字-4文字の形式にする
       const formatted = `${code.slice(0, 4)}-${code.slice(4)}`;
 
       const { count } = await supabase
@@ -63,12 +62,14 @@ export async function generateShareCode(): Promise<{ code?: string; error?: stri
   }
 }
 
-// ─── レポート提出 ───
+// ─── 下書き保存・更新 ───
 
-export async function submitReport(data: {
+export async function saveDraft(data: {
+  reportId?: string;
   kataProblemId: string;
   userName: string;
   shareCode: string | null;
+  step: number;
   requirements: { id: string; question: string; answer: string }[];
   choice1: string;
   choice1Reason: string;
@@ -88,43 +89,99 @@ export async function submitReport(data: {
     if (!data.userName.trim()) {
       return { error: "名前を入力してください" };
     }
-    if (!data.kataProblemId) {
-      return { error: "お題が選択されていません" };
-    }
 
-    const { data: report, error } = await supabase
+    const row = {
+      kata_problem_id: data.kataProblemId,
+      user_name: data.userName.trim(),
+      share_code: data.shareCode?.trim() || null,
+      requirements: data.requirements,
+      choice_1: data.choice1 || null,
+      choice_1_reason: data.choice1Reason || null,
+      choice_2: data.choice2 || null,
+      choice_2_reason: data.choice2Reason || null,
+      choice_3: data.choice3 || null,
+      choice_3_reason: data.choice3Reason || null,
+      tradeoff_1: data.tradeoff1 || null,
+      tradeoff_1_reason: data.tradeoff1Reason || null,
+      tradeoff_2: data.tradeoff2 || null,
+      tradeoff_2_reason: data.tradeoff2Reason || null,
+      discussion_memo: data.discussionMemo || null,
+      component_ids: data.componentIds.length > 0 ? data.componentIds : null,
+      component_reason: data.componentReason || null,
+      status: "draft",
+    };
+
+    if (data.reportId) {
+      // 既存の下書きを更新
+      const { error } = await supabase
+        .from("reports")
+        .update(row)
+        .eq("id", data.reportId)
+        .eq("status", "draft");
+
+      if (error) {
+        console.error("saveDraft update error:", error);
+        return { error: `保存に失敗しました: ${error.message}` };
+      }
+      return { id: data.reportId };
+    } else {
+      // 新規下書き作成
+      const { data: report, error } = await supabase
+        .from("reports")
+        .insert(row)
+        .select("id")
+        .single();
+
+      if (error) {
+        console.error("saveDraft insert error:", error);
+        return { error: `保存に失敗しました: ${error.message}` };
+      }
+      return { id: report.id };
+    }
+  } catch (e) {
+    console.error("saveDraft unexpected error:", e);
+    return { error: "保存中にエラーが発生しました。" };
+  }
+}
+
+// ─── レポート提出(下書き → 提出済み) ───
+
+export async function submitReport(reportId: string): Promise<{ error?: string }> {
+  try {
+    if (!reportId) return { error: "レポートIDが指定されていません" };
+
+    const { error } = await supabase
       .from("reports")
-      .insert({
-        kata_problem_id: data.kataProblemId,
-        user_name: data.userName.trim(),
-        share_code: data.shareCode?.trim() || null,
-        requirements: data.requirements,
-        choice_1: data.choice1,
-        choice_1_reason: data.choice1Reason,
-        choice_2: data.choice2,
-        choice_2_reason: data.choice2Reason,
-        choice_3: data.choice3,
-        choice_3_reason: data.choice3Reason,
-        tradeoff_1: data.tradeoff1 || null,
-        tradeoff_1_reason: data.tradeoff1Reason || null,
-        tradeoff_2: data.tradeoff2 || null,
-        tradeoff_2_reason: data.tradeoff2Reason || null,
-        discussion_memo: data.discussionMemo || null,
-        component_ids: data.componentIds.length > 0 ? data.componentIds : null,
-        component_reason: data.componentReason || null,
-      })
-      .select("id")
-      .single();
+      .update({ status: "submitted" })
+      .eq("id", reportId)
+      .eq("status", "draft");
 
     if (error) {
-      console.error("submitReport DB error:", error);
-      return { error: `レポートの保存に失敗しました: ${error.message}` };
+      console.error("submitReport error:", error);
+      return { error: `提出に失敗しました: ${error.message}` };
     }
-
-    return { id: report.id };
+    return {};
   } catch (e) {
     console.error("submitReport unexpected error:", e);
-    return { error: "予期しないエラーが発生しました。もう一度お試しください。" };
+    return { error: "提出中にエラーが発生しました。もう一度お試しください。" };
+  }
+}
+
+// ─── 下書き取得(再開用) ───
+
+export async function getDraftById(id: string) {
+  try {
+    const { data, error } = await supabase
+      .from("reports")
+      .select("*")
+      .eq("id", id)
+      .eq("status", "draft")
+      .single();
+
+    if (error || !data) return null;
+    return data;
+  } catch {
+    return null;
   }
 }
 
@@ -158,11 +215,11 @@ export async function getReportsByShareCode(code: string) {
       .from("reports")
       .select("id, user_name, kata_problem_id, created_at")
       .eq("share_code", code.trim())
+      .eq("status", "submitted")
       .order("created_at", { ascending: false });
 
     if (error || !data || data.length === 0) return [];
 
-    // お題名を取得
     const problemIds = [...new Set(data.map((r) => r.kata_problem_id))];
     const { data: problems } = await supabase
       .from("kata_problems")

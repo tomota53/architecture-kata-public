@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, useCallback } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,7 +16,7 @@ import { CharacteristicsIllustration } from "@/components/illustrations/Characte
 import { SystemIllustration } from "@/components/illustrations/SystemIllustration";
 import { RequirementsIllustration } from "@/components/illustrations/RequirementsIllustration";
 import { TradeoffIllustration } from "@/components/illustrations/TradeoffIllustration";
-import { getKataProblemById, submitReport, generateShareCode } from "@/app/actions";
+import { getKataProblemById, saveDraft, submitReport, generateShareCode, getDraftById } from "@/app/actions";
 
 type ProblemInfo = {
   id: string;
@@ -60,104 +60,50 @@ function ReportSection({
 export default function KataWorkPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const problemId = params.problemId as string;
+  const draftId = searchParams.get("draft");
 
   const [step, setStep] = useState(1);
   const [problem, setProblem] = useState<ProblemInfo | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reportId, setReportId] = useState<string | null>(draftId);
+  const [saving, setSaving] = useState(false);
 
-  // Step 1: 名前 + 共有コード
+  // Step 1
   const [userName, setUserName] = useState("");
   const [shareCode, setShareCode] = useState("");
 
-  // Step 2: 要件確認
+  // Step 2
   const [requirements, setRequirements] = useState<Requirement[]>([]);
 
-  // Step 3: 特性選択
+  // Step 3
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Step 4: 理由・トレードオフ
+  // Step 4
   const [reasons, setReasons] = useState<Record<string, string>>({});
   const [tradeoffs, setTradeoffs] = useState<string[]>([]);
   const [tradeoffReasons, setTradeoffReasons] = useState<Record<string, string>>({});
   const [discussionMemo, setDiscussionMemo] = useState("");
 
-  // Step 5: コンポーネント選択
+  // Step 5
   const [componentIds, setComponentIds] = useState<string[]>([]);
   const [componentReason, setComponentReason] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function load() {
-      const p = await getKataProblemById(problemId);
-      setProblem(p);
-      setLoading(false);
-    }
-    load();
-  }, [problemId]);
-
-  if (loading) {
-    return <div className="max-w-2xl mx-auto mt-16 text-center text-muted-foreground">読み込み中...</div>;
-  }
-
-  if (!problem) {
-    return (
-      <div className="max-w-md mx-auto mt-16 text-center space-y-4">
-        <h1 className="text-2xl font-bold">お題が見つかりません</h1>
-        <a href="/" className="text-primary underline">トップに戻る</a>
-      </div>
-    );
-  }
-
-  // Step 3: カード選択ハンドラ
-  const toggleCharacteristic = (id: string) => {
-    setSelectedIds((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 3) return prev;
-      return [...prev, id];
-    });
-  };
-
-  // Step 4: トレードオフ選択ハンドラ
-  const toggleTradeoff = (id: string) => {
-    setTradeoffs((prev) => {
-      if (prev.includes(id)) return prev.filter((x) => x !== id);
-      if (prev.length >= 2) return prev;
-      return [...prev, id];
-    });
-  };
-
-  // Step 5: コンポーネント選択ハンドラ
-  const toggleComponent = (id: string) => {
-    setComponentIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
-    );
-  };
-
-  // Step 2 → 3 遷移
-  const handleRequirementsNext = () => {
-    const filledReqs = requirements.filter((r) => r.question.trim() !== "");
-    if (filledReqs.length === 0) {
-      if (!confirm("要件確認をスキップしますか？スキップしても次のステップに進めます。")) return;
-    }
-    setStep(3);
-  };
-
-  // 提出処理
-  const handleSubmit = async () => {
-    setSubmitting(true);
-    setError("");
-
+  // 現在の入力をDBに保存
+  const save = useCallback(async (nextStep: number) => {
+    setSaving(true);
     try {
-      const filledReqs = requirements.filter((r) => r.question.trim() !== "");
-
-      const result = await submitReport({
-        kataProblemId: problem.id,
+      const result = await saveDraft({
+        reportId: reportId ?? undefined,
+        kataProblemId: problemId,
         userName,
         shareCode: shareCode.trim() || null,
-        requirements: filledReqs,
+        step: nextStep,
+        requirements: requirements.filter((r) => r.question.trim() !== ""),
         choice1: selectedIds[0] || "",
         choice1Reason: reasons[selectedIds[0]] || "",
         choice2: selectedIds[1] || "",
@@ -175,11 +121,148 @@ export default function KataWorkPage() {
 
       if (result.error) {
         setError(result.error);
+        setSaving(false);
+        return false;
+      }
+
+      if (result.id && !reportId) {
+        setReportId(result.id);
+        window.history.replaceState(null, "", `/kata/${problemId}?draft=${result.id}`);
+      }
+
+      setSaving(false);
+      return true;
+    } catch {
+      setError("保存中にエラーが発生しました。");
+      setSaving(false);
+      return false;
+    }
+  }, [reportId, problemId, userName, shareCode, requirements, selectedIds, reasons, tradeoffs, tradeoffReasons, discussionMemo, componentIds, componentReason]);
+
+  // ステップ遷移(保存してから移動)
+  const goToStep = async (nextStep: number) => {
+    setError("");
+    const ok = await save(nextStep);
+    if (ok) setStep(nextStep);
+  };
+
+  // 初期ロード
+  useEffect(() => {
+    async function load() {
+      const p = await getKataProblemById(problemId);
+      setProblem(p);
+
+      // 下書き復元
+      if (draftId && p) {
+        const draft = await getDraftById(draftId);
+        if (draft) {
+          setUserName(draft.user_name ?? "");
+          setShareCode(draft.share_code ?? "");
+          setRequirements(
+            (draft.requirements as Requirement[] | null) ?? []
+          );
+          const c1 = draft.choice_1 as string | null;
+          const c2 = draft.choice_2 as string | null;
+          const c3 = draft.choice_3 as string | null;
+          setSelectedIds([c1, c2, c3].filter(Boolean) as string[]);
+          const r: Record<string, string> = {};
+          if (c1 && draft.choice_1_reason) r[c1] = draft.choice_1_reason as string;
+          if (c2 && draft.choice_2_reason) r[c2] = draft.choice_2_reason as string;
+          if (c3 && draft.choice_3_reason) r[c3] = draft.choice_3_reason as string;
+          setReasons(r);
+          const t1 = draft.tradeoff_1 as string | null;
+          const t2 = draft.tradeoff_2 as string | null;
+          setTradeoffs([t1, t2].filter(Boolean) as string[]);
+          const tr: Record<string, string> = {};
+          if (t1 && draft.tradeoff_1_reason) tr[t1] = draft.tradeoff_1_reason as string;
+          if (t2 && draft.tradeoff_2_reason) tr[t2] = draft.tradeoff_2_reason as string;
+          setTradeoffReasons(tr);
+          setDiscussionMemo((draft.discussion_memo as string) ?? "");
+          setComponentIds((draft.component_ids as string[] | null) ?? []);
+          setComponentReason((draft.component_reason as string) ?? "");
+          // 最低でも Step 1 は完了しているので Step 2 以降から再開
+          setStep(2);
+          setReportId(draftId);
+        }
+      }
+
+      setLoading(false);
+    }
+    load();
+  }, [problemId, draftId]);
+
+  if (loading) {
+    return <div className="max-w-2xl mx-auto mt-16 text-center text-muted-foreground">読み込み中...</div>;
+  }
+
+  if (!problem) {
+    return (
+      <div className="max-w-md mx-auto mt-16 text-center space-y-4">
+        <h1 className="text-2xl font-bold">お題が見つかりません</h1>
+        <a href="/" className="text-primary underline">トップに戻る</a>
+      </div>
+    );
+  }
+
+  const toggleCharacteristic = (id: string) => {
+    setSelectedIds((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 3) return prev;
+      return [...prev, id];
+    });
+  };
+
+  const toggleTradeoff = (id: string) => {
+    setTradeoffs((prev) => {
+      if (prev.includes(id)) return prev.filter((x) => x !== id);
+      if (prev.length >= 2) return prev;
+      return [...prev, id];
+    });
+  };
+
+  const toggleComponent = (id: string) => {
+    setComponentIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const handleRequirementsNext = () => {
+    const filledReqs = requirements.filter((r) => r.question.trim() !== "");
+    if (filledReqs.length === 0) {
+      if (!confirm("要件確認をスキップしますか？スキップしても次のステップに進めます。")) return;
+    }
+    goToStep(3);
+  };
+
+  // 提出処理
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setError("");
+
+    try {
+      // 最終保存
+      const saveOk = await save(6);
+      if (!saveOk) {
         setSubmitting(false);
         return;
       }
 
-      router.push(`/report/${result.id}`);
+      const currentReportId = reportId;
+      if (!currentReportId) {
+        setError("レポートIDが取得できませんでした。もう一度お試しください。");
+        setSubmitting(false);
+        return;
+      }
+
+      const result = await submitReport(currentReportId);
+
+      if (result.error) {
+        setError(result.error);
+        setSubmitting(false);
+        return;
+      }
+
+      router.push(`/report/${currentReportId}`);
     } catch (e) {
       setError(`通信エラーが発生しました: ${e instanceof Error ? e.message : "ネットワーク接続を確認してください"}`);
       setSubmitting(false);
@@ -189,7 +272,6 @@ export default function KataWorkPage() {
   const getCharName = (id: string) =>
     ARCH_CHARACTERISTICS.find((c) => c.id === id)?.name ?? id;
 
-  // ステップインジケーター
   const stepLabels = ["名前", "要件", "特性", "理由", "構成", "確認"];
   const StepIndicator = () => (
     <div className="flex items-center justify-center gap-1 mb-6">
@@ -219,12 +301,11 @@ export default function KataWorkPage() {
             </span>
           </div>
           {i < 5 && (
-            <div
-              className={`w-4 h-px mx-0.5 mb-4 ${s < step ? "bg-primary/40" : "bg-border"}`}
-            />
+            <div className={`w-4 h-px mx-0.5 mb-4 ${s < step ? "bg-primary/40" : "bg-border"}`} />
           )}
         </div>
       ))}
+      {saving && <span className="text-xs text-muted-foreground ml-2 mb-4">保存中...</span>}
     </div>
   );
 
@@ -236,7 +317,6 @@ export default function KataWorkPage() {
 
       <StepIndicator />
 
-      {/* お題表示（全ステップ共通） */}
       <div className="p-3 bg-muted rounded-md">
         <p className="text-sm font-semibold">{problem.title}</p>
         <p className="text-sm text-muted-foreground mt-1">{problem.description}</p>
@@ -289,13 +369,43 @@ export default function KataWorkPage() {
             <Button
               className="w-full"
               size="lg"
-              disabled={!userName.trim()}
-              onClick={() => setStep(2)}
+              disabled={!userName.trim() || saving}
+              onClick={() => goToStep(2)}
             >
-              ワークを始める
+              {saving ? "保存中..." : "ワークを始める"}
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* 再開用URL案内(Step 2以降で表示) */}
+      {step >= 2 && reportId && (
+        <div
+          className="rounded-xl border px-4 py-3 text-xs text-muted-foreground leading-relaxed"
+          style={{ backgroundColor: "oklch(0.98 0.02 250)", borderColor: "oklch(0.9 0.04 250)" }}
+        >
+          <p className="font-medium text-foreground mb-1">💾 途中保存されています</p>
+          <p className="mb-2">
+            このURLをブックマークしておくと、途中から再開できます。
+          </p>
+          <div className="flex items-center gap-2">
+            <code className="text-xs bg-background rounded px-2 py-1 flex-1 truncate border">
+              {typeof window !== "undefined" ? window.location.href : `/kata/${problemId}?draft=${reportId}`}
+            </code>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0 text-xs"
+              onClick={() => {
+                navigator.clipboard.writeText(window.location.href);
+                alert("URLをコピーしました");
+              }}
+            >
+              コピー
+            </Button>
+          </div>
+        </div>
       )}
 
       {/* ===== Step 2: 要件確認 ===== */}
@@ -310,11 +420,10 @@ export default function KataWorkPage() {
               <RequirementsEditor value={requirements} onChange={setRequirements} />
             </CardContent>
           </Card>
-
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(1)}>戻る</Button>
-            <Button className="flex-1" size="lg" onClick={handleRequirementsNext}>
-              次へ（特性選択）
+            <Button variant="outline" onClick={() => goToStep(1)}>戻る</Button>
+            <Button className="flex-1" size="lg" disabled={saving} onClick={handleRequirementsNext}>
+              {saving ? "保存中..." : "次へ（特性選択）"}
             </Button>
           </div>
         </div>
@@ -356,16 +465,15 @@ export default function KataWorkPage() {
                 );
               })}
             </div>
-
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setStep(2)}>戻る</Button>
+              <Button variant="outline" onClick={() => goToStep(2)}>戻る</Button>
               <Button
                 className="flex-1"
                 size="lg"
-                disabled={selectedIds.length === 0}
-                onClick={() => setStep(4)}
+                disabled={selectedIds.length === 0 || saving}
+                onClick={() => goToStep(4)}
               >
-                次へ（理由入力）
+                {saving ? "保存中..." : "次へ（理由入力）"}
               </Button>
             </div>
           </CardContent>
@@ -422,7 +530,6 @@ export default function KataWorkPage() {
                   );
                 })}
               </div>
-
               {tradeoffs.map((id) => (
                 <div key={id} className="space-y-2">
                   <Label>捨てた理由: {getCharName(id)}</Label>
@@ -453,9 +560,9 @@ export default function KataWorkPage() {
           </Card>
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(3)}>戻る</Button>
-            <Button className="flex-1" size="lg" onClick={() => setStep(5)}>
-              次へ（コンポーネント選択）
+            <Button variant="outline" onClick={() => goToStep(3)}>戻る</Button>
+            <Button className="flex-1" size="lg" disabled={saving} onClick={() => goToStep(5)}>
+              {saving ? "保存中..." : "次へ（コンポーネント選択）"}
             </Button>
           </div>
         </div>
@@ -481,16 +588,15 @@ export default function KataWorkPage() {
               />
             </CardContent>
           </Card>
-
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(4)}>戻る</Button>
+            <Button variant="outline" onClick={() => goToStep(4)}>戻る</Button>
             <Button
               className="flex-1"
               size="lg"
-              disabled={componentIds.length === 0}
-              onClick={() => setStep(6)}
+              disabled={componentIds.length === 0 || saving}
+              onClick={() => goToStep(6)}
             >
-              確認画面へ
+              {saving ? "保存中..." : "確認画面へ"}
             </Button>
           </div>
         </div>
@@ -499,7 +605,6 @@ export default function KataWorkPage() {
       {/* ===== Step 6: 確認・提出 ===== */}
       {step === 6 && (
         <div className="space-y-6">
-          {/* レポートヘッダー */}
           <div
             className="rounded-xl p-6 space-y-3 text-center"
             style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.1))" }}
@@ -519,7 +624,6 @@ export default function KataWorkPage() {
             )}
           </div>
 
-          {/* セクション1: 確認した要件 */}
           {requirements.filter((r) => r.question.trim()).length > 0 && (
             <ReportSection number="01" title="確認した要件" subtitle="REQUIREMENTS">
               <div className="space-y-4">
@@ -539,7 +643,6 @@ export default function KataWorkPage() {
             </ReportSection>
           )}
 
-          {/* セクション2: 選んだ特性 */}
           <ReportSection number="02" title="選んだアーキテクチャ特性" subtitle="CHARACTERISTICS">
             <div className="space-y-3">
               {selectedIds.map((id, i) => (
@@ -561,7 +664,6 @@ export default function KataWorkPage() {
             </div>
           </ReportSection>
 
-          {/* セクション3: 捨てた特性 */}
           {tradeoffs.length > 0 && (
             <ReportSection number="03" title="あえて捨てた特性" subtitle="TRADE-OFFS">
               <div className="space-y-3">
@@ -577,7 +679,6 @@ export default function KataWorkPage() {
             </ReportSection>
           )}
 
-          {/* セクション4: 振り返りメモ */}
           {discussionMemo && (
             <ReportSection number="04" title="振り返りメモ" subtitle="REFLECTION">
               <div className="rounded-lg p-4 bg-muted/50 border-l-4" style={{ borderLeftColor: "#06b6d4" }}>
@@ -586,7 +687,6 @@ export default function KataWorkPage() {
             </ReportSection>
           )}
 
-          {/* セクション5: システム構成 */}
           <ReportSection number="05" title="システム構成" subtitle="SYSTEM COMPONENTS">
             <div className="space-y-4">
               {COMPONENT_CATEGORIES.map((cat) => {
@@ -620,7 +720,7 @@ export default function KataWorkPage() {
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(5)}>戻る</Button>
+            <Button variant="outline" onClick={() => goToStep(5)}>戻る</Button>
             <Button
               className="flex-1 text-white"
               size="lg"
