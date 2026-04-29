@@ -92,6 +92,7 @@ export default function KataWorkPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [saved, setSaved] = useState(false);
 
   // 現在の入力をDBに保存
   const save = useCallback(async (nextStep: number) => {
@@ -139,8 +140,20 @@ export default function KataWorkPage() {
     }
   }, [reportId, problemId, userName, shareCode, requirements, selectedIds, reasons, tradeoffs, tradeoffReasons, discussionMemo, componentIds, componentReason]);
 
+  // 手動保存
+  const handleSave = async () => {
+    setError("");
+    setSaved(false);
+    const ok = await save(step);
+    if (ok) {
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    }
+  };
+
   // ステップ遷移(保存してから移動)
   const goToStep = async (nextStep: number) => {
+    setSaved(false);
     setError("");
     const ok = await save(nextStep);
     if (ok) setStep(nextStep);
@@ -422,6 +435,9 @@ export default function KataWorkPage() {
           </Card>
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => goToStep(1)}>戻る</Button>
+            <Button variant="outline" disabled={saving} onClick={handleSave}>
+              {saving ? "保存中..." : saved ? "✓ 保存済み" : "保存"}
+            </Button>
             <Button className="flex-1" size="lg" disabled={saving} onClick={handleRequirementsNext}>
               {saving ? "保存中..." : "次へ（特性選択）"}
             </Button>
@@ -467,6 +483,9 @@ export default function KataWorkPage() {
             </div>
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => goToStep(2)}>戻る</Button>
+              <Button variant="outline" disabled={saving} onClick={handleSave}>
+                {saving ? "保存中..." : saved ? "✓ 保存済み" : "保存"}
+              </Button>
               <Button
                 className="flex-1"
                 size="lg"
@@ -561,6 +580,9 @@ export default function KataWorkPage() {
 
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => goToStep(3)}>戻る</Button>
+            <Button variant="outline" disabled={saving} onClick={handleSave}>
+              {saving ? "保存中..." : saved ? "✓ 保存済み" : "保存"}
+            </Button>
             <Button className="flex-1" size="lg" disabled={saving} onClick={() => goToStep(5)}>
               {saving ? "保存中..." : "次へ（コンポーネント選択）"}
             </Button>
@@ -590,6 +612,9 @@ export default function KataWorkPage() {
           </Card>
           <div className="flex gap-3">
             <Button variant="outline" onClick={() => goToStep(4)}>戻る</Button>
+            <Button variant="outline" disabled={saving} onClick={handleSave}>
+              {saving ? "保存中..." : saved ? "✓ 保存済み" : "保存"}
+            </Button>
             <Button
               className="flex-1"
               size="lg"
