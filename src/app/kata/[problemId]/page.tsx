@@ -92,6 +92,7 @@ export default function KataWorkPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
   const [saved, setSaved] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
@@ -241,8 +242,6 @@ export default function KataWorkPage() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     );
   };
-
-  const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 
   const handleRequirementsNext = () => {
     const filledReqs = requirements.filter((r) => r.question.trim() !== "");
