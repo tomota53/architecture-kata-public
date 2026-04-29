@@ -9,7 +9,7 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const SITE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://architecture-kata-public.vercel.app";
 const SITE_NAME = "Architecture Kata";
 const SITE_DESCRIPTION =
-  "ソフトウェアアーキテクチャを実践で学ぶためのグループワーク支援ツール。架空のお題をもとに、チームで要件確認・特性選択・トレードオフ判断を繰り返し練習できます。";
+  "ソフトウェアアーキテクチャを実践で学ぶための学習ツール。架空のお題をもとに、要件確認・特性選択・トレードオフ判断を繰り返し練習できます。";
 const GITHUB_URL = "https://github.com/tomota53/architecture-kata-public";
 const AUTHOR_URL = "https://github.com/tomota53";
 

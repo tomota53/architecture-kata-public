@@ -2,172 +2,48 @@
 
 import { supabase } from "@/lib/supabase";
 
-function generateJoinCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // 紛らわしい文字を除外
-  let code = "";
-  for (let i = 0; i < 6; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return code;
-}
-
-export async function createSession(formData: FormData) {
-  const title = formData.get("title") as string;
-  const kataProblemId = formData.get("kataProblemId") as string;
-  const groupCount = parseInt(formData.get("groupCount") as string, 10);
-
-  if (!title || !kataProblemId || !groupCount) {
-    return { error: "すべての項目を入力してください" };
-  }
-
-  // 参加コード生成（重複回避のためリトライ）
-  let joinCode = "";
-  for (let i = 0; i < 5; i++) {
-    joinCode = generateJoinCode();
-    const { data: existing } = await supabase
-      .from("sessions")
-      .select("id")
-      .eq("join_code", joinCode)
-      .single();
-    if (!existing) break;
-  }
-
-  // セッション作成
-  const { data: session, error: sessionError } = await supabase
-    .from("sessions")
-    .insert({
-      title,
-      join_code: joinCode,
-      kata_problem_id: kataProblemId,
-    })
-    .select()
-    .single();
-
-  if (sessionError || !session) {
-    return { error: "セッションの作成に失敗しました" };
-  }
-
-  // グループ作成
-  const groups = Array.from({ length: groupCount }, (_, i) => ({
-    session_id: session.id,
-    name: `チーム${String.fromCharCode(65 + i)}`, // チームA, B, C...
-  }));
-
-  const { error: groupError } = await supabase.from("groups").insert(groups);
-
-  if (groupError) {
-    return { error: "グループの作成に失敗しました" };
-  }
-
-  return { sessionId: session.id };
-}
+// ─── お題 ───
 
 export async function getKataProblems() {
-  const { data, error } = await supabase
-    .from("kata_problems")
-    .select("id, title, description, difficulty")
-    .eq("is_preset", true);
+  try {
+    const { data, error } = await supabase
+      .from("kata_problems")
+      .select("id, title, description, difficulty")
+      .eq("is_preset", true);
 
-  if (error) return [];
+    if (error) return [];
 
-  const order: Record<string, number> = { easy: 0, medium: 1, hard: 2 };
-  return [...(data ?? [])].sort(
-    (a, b) => (order[a.difficulty] ?? 9) - (order[b.difficulty] ?? 9)
-  );
-}
-
-export async function getSessionByJoinCode(joinCode: string) {
-  const { data, error } = await supabase
-    .from("sessions")
-    .select("id, title, join_code, status, kata_problem_id")
-    .eq("join_code", joinCode.toUpperCase())
-    .eq("status", "active")
-    .single();
-
-  if (error || !data) return null;
-  return data;
-}
-
-export async function getGroupsBySessionId(sessionId: string) {
-  const { data, error } = await supabase
-    .from("groups")
-    .select("id, name, member_names")
-    .eq("session_id", sessionId)
-    .order("name");
-
-  if (error) return [];
-  return data;
-}
-
-export async function getSessionDetail(sessionId: string) {
-  const { data: session, error } = await supabase
-    .from("sessions")
-    .select("id, title, join_code, status, kata_problem_id, created_at")
-    .eq("id", sessionId)
-    .single();
-
-  if (error || !session) return null;
-
-  const { data: problem } = await supabase
-    .from("kata_problems")
-    .select("id, title, description, difficulty, hints")
-    .eq("id", session.kata_problem_id)
-    .single();
-
-  const { data: groups } = await supabase
-    .from("groups")
-    .select("id, name, member_names")
-    .eq("session_id", sessionId)
-    .order("name");
-
-  // 各グループの提出状況を取得（コンポーネント情報含む）
-  const { data: selections } = await supabase
-    .from("selections")
-    .select("group_id, choice_1, choice_2, choice_3, component_ids, component_reason, requirements")
-    .eq("session_id", sessionId);
-
-  const selectionByGroup = new Map(
-    (selections ?? []).map((s) => [s.group_id, s])
-  );
-
-  const groupsWithStatus = (groups ?? []).map((g) => {
-    const sel = selectionByGroup.get(g.id);
-    return {
-      ...g,
-      submitted: !!sel,
-      choices: sel ? [sel.choice_1, sel.choice_2, sel.choice_3].filter(Boolean) : [],
-      componentIds: (sel?.component_ids as string[] | null) ?? [],
-      requirements: (sel?.requirements as { id: string; question: string; answer: string }[] | null) ?? [],
-    };
-  });
-
-  return { session, problem, groups: groupsWithStatus };
+    const order: Record<string, number> = { easy: 0, medium: 1, hard: 2 };
+    return [...(data ?? [])].sort(
+      (a, b) => (order[a.difficulty] ?? 9) - (order[b.difficulty] ?? 9)
+    );
+  } catch {
+    return [];
+  }
 }
 
 export async function getKataProblemById(problemId: string) {
-  const { data, error } = await supabase
-    .from("kata_problems")
-    .select("id, title, description, difficulty")
-    .eq("id", problemId)
-    .single();
+  try {
+    const { data, error } = await supabase
+      .from("kata_problems")
+      .select("id, title, description, difficulty")
+      .eq("id", problemId)
+      .single();
 
-  if (error || !data) return null;
-  return data;
+    if (error || !data) return null;
+    return data;
+  } catch {
+    return null;
+  }
 }
 
-export async function updateMemberNames(groupId: string, memberNames: string[]) {
-  const { error } = await supabase
-    .from("groups")
-    .update({ member_names: memberNames })
-    .eq("id", groupId);
+// ─── レポート提出 ───
 
-  if (error) return { error: "メンバー名の保存に失敗しました" };
-  return { success: true };
-}
-
-export async function submitSelections(data: {
-  groupId: string;
-  sessionId: string;
+export async function submitReport(data: {
+  kataProblemId: string;
+  userName: string;
+  shareCode: string | null;
+  requirements: { id: string; question: string; answer: string }[];
   choice1: string;
   choice1Reason: string;
   choice2: string;
@@ -181,75 +57,101 @@ export async function submitSelections(data: {
   discussionMemo: string;
   componentIds: string[];
   componentReason: string;
-  requirements: { id: string; question: string; answer: string }[];
-}) {
-  const { error } = await supabase.from("selections").insert({
-    group_id: data.groupId,
-    session_id: data.sessionId,
-    choice_1: data.choice1,
-    choice_1_reason: data.choice1Reason,
-    choice_2: data.choice2,
-    choice_2_reason: data.choice2Reason,
-    choice_3: data.choice3,
-    choice_3_reason: data.choice3Reason,
-    tradeoff_1: data.tradeoff1 || null,
-    tradeoff_1_reason: data.tradeoff1Reason || null,
-    tradeoff_2: data.tradeoff2 || null,
-    tradeoff_2_reason: data.tradeoff2Reason || null,
-    discussion_memo: data.discussionMemo || null,
-    component_ids: data.componentIds.length > 0 ? data.componentIds : null,
-    component_reason: data.componentReason || null,
-    requirements: data.requirements,
-  });
+}): Promise<{ id?: string; error?: string }> {
+  try {
+    if (!data.userName.trim()) {
+      return { error: "名前を入力してください" };
+    }
+    if (!data.kataProblemId) {
+      return { error: "お題が選択されていません" };
+    }
 
-  if (error) return { error: `提出に失敗しました: ${error.message}` };
-  return { success: true };
+    const { data: report, error } = await supabase
+      .from("reports")
+      .insert({
+        kata_problem_id: data.kataProblemId,
+        user_name: data.userName.trim(),
+        share_code: data.shareCode?.trim() || null,
+        requirements: data.requirements,
+        choice_1: data.choice1,
+        choice_1_reason: data.choice1Reason,
+        choice_2: data.choice2,
+        choice_2_reason: data.choice2Reason,
+        choice_3: data.choice3,
+        choice_3_reason: data.choice3Reason,
+        tradeoff_1: data.tradeoff1 || null,
+        tradeoff_1_reason: data.tradeoff1Reason || null,
+        tradeoff_2: data.tradeoff2 || null,
+        tradeoff_2_reason: data.tradeoff2Reason || null,
+        discussion_memo: data.discussionMemo || null,
+        component_ids: data.componentIds.length > 0 ? data.componentIds : null,
+        component_reason: data.componentReason || null,
+      })
+      .select("id")
+      .single();
+
+    if (error) {
+      console.error("submitReport DB error:", error);
+      return { error: `レポートの保存に失敗しました: ${error.message}` };
+    }
+
+    return { id: report.id };
+  } catch (e) {
+    console.error("submitReport unexpected error:", e);
+    return { error: "予期しないエラーが発生しました。もう一度お試しください。" };
+  }
 }
 
-export async function getGroupById(groupId: string) {
-  const { data, error } = await supabase
-    .from("groups")
-    .select("id, name, member_names, session_id")
-    .eq("id", groupId)
-    .single();
+// ─── レポート取得 ───
 
-  if (error || !data) return null;
-  return data;
+export async function getReportById(id: string) {
+  try {
+    const { data: report, error } = await supabase
+      .from("reports")
+      .select("*")
+      .eq("id", id)
+      .single();
+
+    if (error || !report) return null;
+
+    const { data: problem } = await supabase
+      .from("kata_problems")
+      .select("id, title, description, difficulty")
+      .eq("id", report.kata_problem_id)
+      .single();
+
+    return { report, problem };
+  } catch {
+    return null;
+  }
 }
 
-export async function getSelectionByGroupId(groupId: string) {
-  const { data, error } = await supabase
-    .from("selections")
-    .select("*")
-    .eq("group_id", groupId)
-    .single();
+export async function getReportsByShareCode(code: string) {
+  try {
+    const { data, error } = await supabase
+      .from("reports")
+      .select("id, user_name, kata_problem_id, created_at")
+      .eq("share_code", code.trim())
+      .order("created_at", { ascending: false });
 
-  if (error || !data) return null;
-  return data;
-}
+    if (error || !data || data.length === 0) return [];
 
-export async function getSummaryData(joinCode: string, groupId: string) {
-  const session = await getSessionByJoinCode(joinCode);
-  if (!session) return null;
+    // お題名を取得
+    const problemIds = [...new Set(data.map((r) => r.kata_problem_id))];
+    const { data: problems } = await supabase
+      .from("kata_problems")
+      .select("id, title")
+      .in("id", problemIds);
 
-  const [group, selection] = await Promise.all([
-    getGroupById(groupId),
-    getSelectionByGroupId(groupId),
-  ]);
+    const problemMap = new Map((problems ?? []).map((p) => [p.id, p.title]));
 
-  if (!group || !selection) return null;
-
-  const problem = await getKataProblemById(session.kata_problem_id);
-
-  return { session, group, selection, problem };
-}
-
-export async function finishSession(sessionId: string) {
-  const { error } = await supabase
-    .from("sessions")
-    .update({ status: "finished" })
-    .eq("id", sessionId);
-
-  if (error) return { error: "セッションの終了に失敗しました" };
-  return { success: true };
+    return data.map((r) => ({
+      id: r.id,
+      userName: r.user_name,
+      problemTitle: problemMap.get(r.kata_problem_id) ?? "不明なお題",
+      createdAt: r.created_at,
+    }));
+  } catch {
+    return [];
+  }
 }

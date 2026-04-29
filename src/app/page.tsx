@@ -1,105 +1,68 @@
-"use client";
-
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeroIllustration } from "@/components/illustrations/HeroIllustration";
+import { getKataProblems } from "@/app/actions";
 
-export default function Home() {
-  const router = useRouter();
-  const [joinCode, setJoinCode] = useState("");
-  const [error, setError] = useState("");
+const difficultyLabel: Record<string, string> = {
+  easy: "初級",
+  medium: "中級",
+  hard: "上級",
+};
 
-  const handleJoin = () => {
-    const code = joinCode.trim().toUpperCase();
-    if (code.length !== 6) {
-      setError("6桁の参加コードを入力してください");
-      return;
-    }
-    setError("");
-    router.push(`/join/${code}`);
-  };
+export default async function Home() {
+  const problems = await getKataProblems();
 
   return (
-    <div className="max-w-md mx-auto mt-8 space-y-8">
+    <div className="max-w-lg mx-auto mt-8 space-y-8">
       {/* ヒーロー */}
       <div className="text-center space-y-4">
         <HeroIllustration className="w-full max-w-sm mx-auto" />
-        <h1 className="text-3xl font-bold bg-clip-text text-transparent" style={{ backgroundImage: "linear-gradient(135deg, #1e1b4b, #6366f1)" }}>
+        <h1
+          className="text-3xl font-bold bg-clip-text text-transparent"
+          style={{
+            backgroundImage: "linear-gradient(135deg, #1e1b4b, #6366f1)",
+          }}
+        >
           Architecture Kata
         </h1>
         <p className="text-muted-foreground text-sm">
-          グループでアーキテクチャ特性を議論・選択しよう
+          お題を選んで、アーキテクチャ設計に挑戦しよう
         </p>
       </div>
 
-      <Card className="shadow-md border-0" style={{ background: "linear-gradient(135deg, rgba(99,102,241,0.03), rgba(139,92,246,0.06))" }}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full text-xs text-white flex items-center justify-center" style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}>F</span>
-            ファシリテーター
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Button
-            className="w-full text-white"
-            size="lg"
-            onClick={() => router.push("/new")}
-            style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)" }}
-          >
-            セッションを作成する
-          </Button>
-        </CardContent>
-      </Card>
+      {/* お題一覧 */}
+      <div className="space-y-3">
+        <h2 className="text-lg font-semibold">お題を選ぶ</h2>
+        {problems.map((p) => (
+          <Link key={p.id} href={`/kata/${p.id}`}>
+            <Card className="hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer border-0 shadow-sm mb-3">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Badge variant="outline" className="text-xs shrink-0">
+                    {difficultyLabel[p.difficulty]}
+                  </Badge>
+                  {p.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground line-clamp-2">
+                  {p.description}
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
 
-      <Card className="shadow-md border-0" style={{ background: "linear-gradient(135deg, rgba(6,182,212,0.03), rgba(99,102,241,0.06))" }}>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <span className="w-6 h-6 rounded-full text-xs text-white flex items-center justify-center" style={{ background: "linear-gradient(135deg, #06b6d4, #6366f1)" }}>P</span>
-            参加者
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <Input
-            placeholder="参加コード（6桁）"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            maxLength={6}
-            className="text-center text-lg tracking-widest font-mono"
-          />
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <Button
-            className="w-full"
-            size="lg"
-            variant="outline"
-            onClick={handleJoin}
-          >
-            参加する
-          </Button>
-        </CardContent>
-      </Card>
-
-      <div className="text-center">
+      {/* 座学リンク */}
+      <div className="text-center space-y-3">
         <Link
           href="/learn"
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           📖 まずは座学で基礎を学ぶ &rarr;
         </Link>
-      </div>
-
-      <div
-        className="rounded-xl border px-4 py-3 text-xs text-muted-foreground leading-relaxed"
-        style={{ backgroundColor: "oklch(0.98 0.02 250)", borderColor: "oklch(0.9 0.04 250)" }}
-      >
-        <p className="font-medium text-foreground mb-1">💡 一人で学習する場合</p>
-        <p>
-          まず「セッションを作成する」からファシリテーターとしてお題を設定し、発行された参加コードを控えてください。
-          次に別タブで本ページを開き、参加者として参加コードを入力するとワークを開始できます。
-        </p>
       </div>
 
       <div className="text-center">

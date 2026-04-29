@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
-import { getSummaryData } from "@/app/actions";
+import { getReportById } from "@/app/actions";
 import { ARCH_CHARACTERISTICS } from "@/lib/characteristics";
 import { ARCH_COMPONENTS, COMPONENT_CATEGORIES } from "@/lib/components-master";
 import { PrintButton } from "./print-button";
 import { Badge } from "@/components/ui/badge";
+import type { Metadata } from "next";
 
 function getCharName(id: string) {
   return ARCH_CHARACTERISTICS.find((c) => c.id === id)?.name ?? id;
@@ -41,39 +42,52 @@ function ReportSection({
   );
 }
 
-export default async function SummaryPage({
+export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ joinCode: string; groupId: string }>;
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const data = await getReportById(id);
+  if (!data) return { title: "レポートが見つかりません" };
+  return {
+    title: `${data.report.user_name} の設計レポート`,
+    description: `${data.problem?.title} に対する設計レポート`,
+  };
+}
+
+export default async function ReportPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
 }) {
-  const { joinCode, groupId } = await params;
-  const data = await getSummaryData(joinCode, groupId);
+  const { id } = await params;
+  const data = await getReportById(id);
 
   if (!data) return notFound();
 
-  const { session, group, selection, problem } = data;
+  const { report, problem } = data;
 
   const choices = [
-    { name: selection.choice_1, reason: selection.choice_1_reason },
-    { name: selection.choice_2, reason: selection.choice_2_reason },
-    { name: selection.choice_3, reason: selection.choice_3_reason },
+    { name: report.choice_1, reason: report.choice_1_reason },
+    { name: report.choice_2, reason: report.choice_2_reason },
+    { name: report.choice_3, reason: report.choice_3_reason },
   ].filter((c) => c.name);
 
   const tradeoffs = [
-    { name: selection.tradeoff_1, reason: selection.tradeoff_1_reason },
-    { name: selection.tradeoff_2, reason: selection.tradeoff_2_reason },
+    { name: report.tradeoff_1, reason: report.tradeoff_1_reason },
+    { name: report.tradeoff_2, reason: report.tradeoff_2_reason },
   ].filter((t) => t.name);
 
   const requirements =
-    (selection.requirements as { id: string; question: string; answer: string }[] | null) ?? [];
-  const componentIds = (selection.component_ids as string[] | null) ?? [];
+    (report.requirements as { id: string; question: string; answer: string }[] | null) ?? [];
+  const componentIds = (report.component_ids as string[] | null) ?? [];
 
   return (
     <>
-      {/* 印刷用スタイル */}
       <style>{`
         @media print {
-          header, .no-print { display: none !important; }
+          header, footer, .no-print { display: none !important; }
           body { background: white !important; }
           main { padding: 0 !important; }
         }
@@ -92,13 +106,12 @@ export default async function SummaryPage({
             className="text-3xl font-bold bg-clip-text text-transparent print:text-black"
             style={{ backgroundImage: "linear-gradient(135deg, #1e1b4b, #6366f1)" }}
           >
-            {group.name} 設計レポート
+            {report.user_name} の設計レポート
           </h1>
           <div className="text-sm text-muted-foreground space-y-1">
             <p className="font-medium">{problem?.title}</p>
-            <p className="text-xs">{session.title}</p>
-            {group.member_names && group.member_names.length > 0 && (
-              <p className="text-xs">メンバー: {group.member_names.join("、")}</p>
+            {report.share_code && (
+              <p className="text-xs">共有コード: {report.share_code}</p>
             )}
           </div>
         </div>
@@ -119,8 +132,7 @@ export default async function SummaryPage({
                   </p>
                   {r.answer && (
                     <p className="text-sm text-muted-foreground pl-6">
-                      <span className="mr-2">A.</span>
-                      {r.answer}
+                      <span className="mr-2">A.</span>{r.answer}
                     </p>
                   )}
                 </div>
@@ -130,11 +142,7 @@ export default async function SummaryPage({
         )}
 
         {/* 02. 選んだ特性 */}
-        <ReportSection
-          number="02"
-          title="選んだアーキテクチャ特性"
-          subtitle="CHARACTERISTICS"
-        >
+        <ReportSection number="02" title="選んだアーキテクチャ特性" subtitle="CHARACTERISTICS">
           <div className="space-y-3">
             {choices.map((c, i) => (
               <div
@@ -185,15 +193,15 @@ export default async function SummaryPage({
           </ReportSection>
         )}
 
-        {/* 04. 議論メモ */}
-        {selection.discussion_memo && (
-          <ReportSection number="04" title="議論のハイライト" subtitle="DISCUSSION">
+        {/* 04. 振り返りメモ */}
+        {report.discussion_memo && (
+          <ReportSection number="04" title="振り返りメモ" subtitle="REFLECTION">
             <div
               className="rounded-lg p-4 bg-muted/50 border-l-4 print:bg-transparent print:border print:border-gray-300"
               style={{ borderLeftColor: "#06b6d4" }}
             >
               <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                {selection.discussion_memo}
+                {report.discussion_memo}
               </p>
             </div>
           </ReportSection>
@@ -205,7 +213,7 @@ export default async function SummaryPage({
             <div className="space-y-4">
               {COMPONENT_CATEGORIES.map((cat) => {
                 const selected = componentIds
-                  .map((id) => ARCH_COMPONENTS.find((c) => c.id === id))
+                  .map((cid) => ARCH_COMPONENTS.find((c) => c.id === cid))
                   .filter((c) => c && c.category === cat.id);
                 if (selected.length === 0) return null;
                 return (
@@ -227,14 +235,14 @@ export default async function SummaryPage({
                   </div>
                 );
               })}
-              {selection.component_reason && (
+              {report.component_reason && (
                 <div
                   className="rounded-lg p-4 bg-muted/50 border-l-4 mt-4 print:bg-transparent print:border print:border-gray-300"
                   style={{ borderLeftColor: "#06b6d4" }}
                 >
                   <p className="text-xs font-semibold text-muted-foreground mb-1">設計の意図</p>
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                    {selection.component_reason}
+                    {report.component_reason}
                   </p>
                 </div>
               )}
@@ -242,8 +250,16 @@ export default async function SummaryPage({
           </ReportSection>
         )}
 
-        {/* ナビゲーション・印刷ボタン（印刷時非表示） */}
-        <PrintButton joinCode={joinCode} />
+        {/* レポートURL案内 */}
+        <div className="no-print rounded-xl border px-4 py-3 text-xs text-muted-foreground leading-relaxed"
+          style={{ backgroundColor: "oklch(0.98 0.02 250)", borderColor: "oklch(0.9 0.04 250)" }}
+        >
+          <p className="font-medium text-foreground mb-1">このレポートのURL</p>
+          <p className="font-mono text-xs break-all">/report/{id}</p>
+          <p className="mt-1">このURLをブックマークしておくと、いつでもレポートにアクセスできます。</p>
+        </div>
+
+        <PrintButton shareCode={report.share_code} />
       </div>
     </>
   );

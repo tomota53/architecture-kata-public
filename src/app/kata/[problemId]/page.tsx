@@ -16,28 +16,7 @@ import { CharacteristicsIllustration } from "@/components/illustrations/Characte
 import { SystemIllustration } from "@/components/illustrations/SystemIllustration";
 import { RequirementsIllustration } from "@/components/illustrations/RequirementsIllustration";
 import { TradeoffIllustration } from "@/components/illustrations/TradeoffIllustration";
-import {
-  getSessionByJoinCode,
-  getGroupById,
-  getKataProblemById,
-  updateMemberNames,
-  submitSelections,
-} from "@/app/actions";
-
-type SessionInfo = {
-  id: string;
-  title: string;
-  join_code: string;
-  status: string;
-  kata_problem_id: string;
-};
-
-type GroupInfo = {
-  id: string;
-  name: string;
-  member_names: string[] | null;
-  session_id: string;
-};
+import { getKataProblemById, submitReport } from "@/app/actions";
 
 type ProblemInfo = {
   id: string;
@@ -78,25 +57,23 @@ function ReportSection({
   );
 }
 
-export default function ParticipantWorkPage() {
+export default function KataWorkPage() {
   const params = useParams();
   const router = useRouter();
-  const joinCode = params.joinCode as string;
-  const groupId = params.groupId as string;
+  const problemId = params.problemId as string;
 
   const [step, setStep] = useState(1);
-  const [session, setSession] = useState<SessionInfo | null>(null);
-  const [group, setGroup] = useState<GroupInfo | null>(null);
   const [problem, setProblem] = useState<ProblemInfo | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Step 1: メンバー名
-  const [memberNames, setMemberNames] = useState<string[]>(["", "", "", "", ""]);
+  // Step 1: 名前 + 共有コード
+  const [userName, setUserName] = useState("");
+  const [shareCode, setShareCode] = useState("");
 
   // Step 2: 要件確認
   const [requirements, setRequirements] = useState<Requirement[]>([]);
 
-  // Step 3: 特性選択（選択順を保持）
+  // Step 3: 特性選択
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
   // Step 4: 理由・トレードオフ
@@ -114,42 +91,25 @@ export default function ParticipantWorkPage() {
 
   useEffect(() => {
     async function load() {
-      const s = await getSessionByJoinCode(joinCode);
-      if (!s) {
-        setLoading(false);
-        return;
-      }
-      setSession(s);
-
-      const [g, p] = await Promise.all([
-        getGroupById(groupId),
-        getKataProblemById(s.kata_problem_id),
-      ]);
-      setGroup(g);
+      const p = await getKataProblemById(problemId);
       setProblem(p);
-      if (g?.member_names && g.member_names.length > 0) {
-        const padded = [...g.member_names, ...Array(5).fill("")].slice(0, 5);
-        setMemberNames(padded);
-      }
       setLoading(false);
     }
     load();
-  }, [joinCode, groupId]);
+  }, [problemId]);
 
   if (loading) {
     return <div className="max-w-2xl mx-auto mt-16 text-center text-muted-foreground">読み込み中...</div>;
   }
 
-  if (!session || !group || !problem) {
+  if (!problem) {
     return (
       <div className="max-w-md mx-auto mt-16 text-center space-y-4">
-        <h1 className="text-2xl font-bold">セッションが見つかりません</h1>
+        <h1 className="text-2xl font-bold">お題が見つかりません</h1>
         <a href="/" className="text-primary underline">トップに戻る</a>
       </div>
     );
   }
-
-  const filledMembers = memberNames.filter((n) => n.trim() !== "");
 
   // Step 3: カード選択ハンドラ
   const toggleCharacteristic = (id: string) => {
@@ -176,7 +136,7 @@ export default function ParticipantWorkPage() {
     );
   };
 
-  // Step 2 → 3 遷移: 要件確認スキップ判定
+  // Step 2 → 3 遷移
   const handleRequirementsNext = () => {
     const filledReqs = requirements.filter((r) => r.question.trim() !== "");
     if (filledReqs.length === 0) {
@@ -193,9 +153,11 @@ export default function ParticipantWorkPage() {
     try {
       const filledReqs = requirements.filter((r) => r.question.trim() !== "");
 
-      const result = await submitSelections({
-        groupId: group.id,
-        sessionId: session.id,
+      const result = await submitReport({
+        kataProblemId: problem.id,
+        userName,
+        shareCode: shareCode.trim() || null,
+        requirements: filledReqs,
         choice1: selectedIds[0] || "",
         choice1Reason: reasons[selectedIds[0]] || "",
         choice2: selectedIds[1] || "",
@@ -209,7 +171,6 @@ export default function ParticipantWorkPage() {
         discussionMemo,
         componentIds,
         componentReason,
-        requirements: filledReqs,
       });
 
       if (result.error) {
@@ -218,9 +179,9 @@ export default function ParticipantWorkPage() {
         return;
       }
 
-      router.push(`/session/${joinCode}/group/${groupId}/summary`);
+      router.push(`/report/${result.id}`);
     } catch (e) {
-      setError(`提出中にエラーが発生しました: ${e instanceof Error ? e.message : "不明なエラー"}`);
+      setError(`通信エラーが発生しました: ${e instanceof Error ? e.message : "ネットワーク接続を確認してください"}`);
       setSubmitting(false);
     }
   };
@@ -229,7 +190,7 @@ export default function ParticipantWorkPage() {
     ARCH_CHARACTERISTICS.find((c) => c.id === id)?.name ?? id;
 
   // ステップインジケーター
-  const stepLabels = ["参加", "要件", "特性", "理由", "構成", "確認"];
+  const stepLabels = ["名前", "要件", "特性", "理由", "構成", "確認"];
   const StepIndicator = () => (
     <div className="flex items-center justify-center gap-1 mb-6">
       {[1, 2, 3, 4, 5, 6].map((s, i) => (
@@ -270,8 +231,7 @@ export default function ParticipantWorkPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div className="text-center space-y-1">
-        <p className="text-sm text-muted-foreground">{session.title}</p>
-        <h1 className="text-xl font-bold">{group.name}</h1>
+        <h1 className="text-xl font-bold">{problem.title}</h1>
       </div>
 
       <StepIndicator />
@@ -282,37 +242,40 @@ export default function ParticipantWorkPage() {
         <p className="text-sm text-muted-foreground mt-1">{problem.description}</p>
       </div>
 
-      {/* ===== Step 1: メンバー名入力 ===== */}
+      {/* ===== Step 1: 名前 + 共有コード ===== */}
       {step === 1 && (
         <Card>
           <CardHeader>
-            <CardTitle>Step 1: グループ参加</CardTitle>
+            <CardTitle>Step 1: あなたの情報</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <Label>メンバー名（最大5人）</Label>
-              {memberNames.map((name, i) => (
-                <Input
-                  key={i}
-                  placeholder={`メンバー${i + 1}`}
-                  value={name}
-                  onChange={(e) => {
-                    const next = [...memberNames];
-                    next[i] = e.target.value;
-                    setMemberNames(next);
-                  }}
-                />
-              ))}
+            <div className="space-y-2">
+              <Label htmlFor="userName">名前（ニックネーム可）</Label>
+              <Input
+                id="userName"
+                placeholder="例: タロウ"
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="shareCode">共有コード（任意）</Label>
+              <Input
+                id="shareCode"
+                placeholder="例: KENSHU2026"
+                value={shareCode}
+                onChange={(e) => setShareCode(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">
+                研修担当者から共有コードを受け取っている場合に入力してください。管理者がレポートを一覧で確認できるようになります。
+              </p>
             </div>
 
             <Button
               className="w-full"
               size="lg"
-              disabled={filledMembers.length === 0}
-              onClick={async () => {
-                await updateMemberNames(group.id, filledMembers);
-                setStep(2);
-              }}
+              disabled={!userName.trim()}
+              onClick={() => setStep(2)}
             >
               ワークを始める
             </Button>
@@ -329,22 +292,13 @@ export default function ParticipantWorkPage() {
               <CardTitle>Step 2: お題に対して確認したいことを整理しましょう</CardTitle>
             </CardHeader>
             <CardContent>
-              <RequirementsEditor
-                value={requirements}
-                onChange={setRequirements}
-              />
+              <RequirementsEditor value={requirements} onChange={setRequirements} />
             </CardContent>
           </Card>
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(1)}>
-              戻る
-            </Button>
-            <Button
-              className="flex-1"
-              size="lg"
-              onClick={handleRequirementsNext}
-            >
+            <Button variant="outline" onClick={() => setStep(1)}>戻る</Button>
+            <Button className="flex-1" size="lg" onClick={handleRequirementsNext}>
               次へ（特性選択）
             </Button>
           </div>
@@ -389,9 +343,7 @@ export default function ParticipantWorkPage() {
             </div>
 
             <div className="flex gap-3">
-              <Button variant="outline" onClick={() => setStep(2)}>
-                戻る
-              </Button>
+              <Button variant="outline" onClick={() => setStep(2)}>戻る</Button>
               <Button
                 className="flex-1"
                 size="lg"
@@ -416,9 +368,7 @@ export default function ParticipantWorkPage() {
             <CardContent className="space-y-4">
               {selectedIds.map((id, i) => (
                 <div key={id} className="space-y-2">
-                  <Label>
-                    {i + 1}位: {getCharName(id)}
-                  </Label>
+                  <Label>{i + 1}位: {getCharName(id)}</Label>
                   <Textarea
                     placeholder="この特性を選んだ理由..."
                     value={reasons[id] || ""}
@@ -440,24 +390,22 @@ export default function ParticipantWorkPage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {ARCH_CHARACTERISTICS.filter((c) => !selectedIds.includes(c.id)).map(
-                  (c) => {
-                    const isTradeoff = tradeoffs.includes(c.id);
-                    return (
-                      <button
-                        key={c.id}
-                        onClick={() => toggleTradeoff(c.id)}
-                        className={`p-3 rounded-lg border text-left text-sm transition-all ${
-                          isTradeoff
-                            ? "border-destructive bg-destructive/5"
-                            : "border-border hover:border-destructive/50"
-                        }`}
-                      >
-                        {c.name}
-                      </button>
-                    );
-                  }
-                )}
+                {ARCH_CHARACTERISTICS.filter((c) => !selectedIds.includes(c.id)).map((c) => {
+                  const isTradeoff = tradeoffs.includes(c.id);
+                  return (
+                    <button
+                      key={c.id}
+                      onClick={() => toggleTradeoff(c.id)}
+                      className={`p-3 rounded-lg border text-left text-sm transition-all ${
+                        isTradeoff
+                          ? "border-destructive bg-destructive/5"
+                          : "border-border hover:border-destructive/50"
+                      }`}
+                    >
+                      {c.name}
+                    </button>
+                  );
+                })}
               </div>
 
               {tradeoffs.map((id) => (
@@ -467,10 +415,7 @@ export default function ParticipantWorkPage() {
                     placeholder="この特性を捨てた理由..."
                     value={tradeoffReasons[id] || ""}
                     onChange={(e) =>
-                      setTradeoffReasons((prev) => ({
-                        ...prev,
-                        [id]: e.target.value,
-                      }))
+                      setTradeoffReasons((prev) => ({ ...prev, [id]: e.target.value }))
                     }
                   />
                 </div>
@@ -480,11 +425,11 @@ export default function ParticipantWorkPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>グループで一番議論になったこと</CardTitle>
+              <CardTitle>振り返りメモ</CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
-                placeholder="自由に記述してください..."
+                placeholder="判断に迷ったこと、気づいたことなどを自由に記述してください..."
                 value={discussionMemo}
                 onChange={(e) => setDiscussionMemo(e.target.value)}
                 rows={4}
@@ -493,9 +438,7 @@ export default function ParticipantWorkPage() {
           </Card>
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(3)}>
-              戻る
-            </Button>
+            <Button variant="outline" onClick={() => setStep(3)}>戻る</Button>
             <Button className="flex-1" size="lg" onClick={() => setStep(5)}>
               次へ（コンポーネント選択）
             </Button>
@@ -525,9 +468,7 @@ export default function ParticipantWorkPage() {
           </Card>
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(4)}>
-              戻る
-            </Button>
+            <Button variant="outline" onClick={() => setStep(4)}>戻る</Button>
             <Button
               className="flex-1"
               size="lg"
@@ -540,7 +481,7 @@ export default function ParticipantWorkPage() {
         </div>
       )}
 
-      {/* ===== Step 6: 確認・提出（レポート風） ===== */}
+      {/* ===== Step 6: 確認・提出 ===== */}
       {step === 6 && (
         <div className="space-y-6">
           {/* レポートヘッダー */}
@@ -555,40 +496,30 @@ export default function ParticipantWorkPage() {
               className="text-2xl font-bold bg-clip-text text-transparent"
               style={{ backgroundImage: "linear-gradient(135deg, #1e1b4b, #6366f1)" }}
             >
-              {group.name} 設計レポート
+              {userName} の設計レポート
             </h2>
-            <p className="text-sm text-muted-foreground">
-              {problem.title}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              メンバー: {filledMembers.join("、")}
-            </p>
+            <p className="text-sm text-muted-foreground">{problem.title}</p>
+            {shareCode.trim() && (
+              <p className="text-xs text-muted-foreground">共有コード: {shareCode.trim()}</p>
+            )}
           </div>
 
           {/* セクション1: 確認した要件 */}
           {requirements.filter((r) => r.question.trim()).length > 0 && (
-            <ReportSection
-              number="01"
-              title="確認した要件"
-              subtitle="REQUIREMENTS"
-            >
+            <ReportSection number="01" title="確認した要件" subtitle="REQUIREMENTS">
               <div className="space-y-4">
-                {requirements
-                  .filter((r) => r.question.trim())
-                  .map((r, i) => (
-                    <div key={r.id} className="rounded-lg p-4 bg-muted/50 border-l-4" style={{ borderLeftColor: "#6366f1" }}>
-                      <p className="text-sm font-semibold mb-1">
-                        <span className="text-primary mr-2">Q{i + 1}.</span>
-                        {r.question}
+                {requirements.filter((r) => r.question.trim()).map((r, i) => (
+                  <div key={r.id} className="rounded-lg p-4 bg-muted/50 border-l-4" style={{ borderLeftColor: "#6366f1" }}>
+                    <p className="text-sm font-semibold mb-1">
+                      <span className="text-primary mr-2">Q{i + 1}.</span>{r.question}
+                    </p>
+                    {r.answer && (
+                      <p className="text-sm text-muted-foreground pl-6">
+                        <span className="text-muted-foreground mr-2">A.</span>{r.answer}
                       </p>
-                      {r.answer && (
-                        <p className="text-sm text-muted-foreground pl-6">
-                          <span className="text-muted-foreground mr-2">A.</span>
-                          {r.answer}
-                        </p>
-                      )}
-                    </div>
-                  ))}
+                    )}
+                  </div>
+                ))}
               </div>
             </ReportSection>
           )}
@@ -597,11 +528,7 @@ export default function ParticipantWorkPage() {
           <ReportSection number="02" title="選んだアーキテクチャ特性" subtitle="CHARACTERISTICS">
             <div className="space-y-3">
               {selectedIds.map((id, i) => (
-                <div
-                  key={id}
-                  className="rounded-lg p-4 border-l-4 bg-muted/50"
-                  style={{ borderLeftColor: "#6366f1" }}
-                >
+                <div key={id} className="rounded-lg p-4 border-l-4 bg-muted/50" style={{ borderLeftColor: "#6366f1" }}>
                   <div className="flex items-center gap-3 mb-2">
                     <div
                       className="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0"
@@ -624,14 +551,8 @@ export default function ParticipantWorkPage() {
             <ReportSection number="03" title="あえて捨てた特性" subtitle="TRADE-OFFS">
               <div className="space-y-3">
                 {tradeoffs.map((id) => (
-                  <div
-                    key={id}
-                    className="rounded-lg p-4 border-l-4 bg-muted/50"
-                    style={{ borderLeftColor: "#f43f5e" }}
-                  >
-                    <h4 className="font-bold text-base mb-2 text-destructive">
-                      ✕ {getCharName(id)}
-                    </h4>
+                  <div key={id} className="rounded-lg p-4 border-l-4 bg-muted/50" style={{ borderLeftColor: "#f43f5e" }}>
+                    <h4 className="font-bold text-base mb-2 text-destructive">✕ {getCharName(id)}</h4>
                     <p className="text-sm text-muted-foreground leading-relaxed">
                       {tradeoffReasons[id] || "（理由未入力）"}
                     </p>
@@ -641,13 +562,11 @@ export default function ParticipantWorkPage() {
             </ReportSection>
           )}
 
-          {/* セクション4: 議論メモ */}
+          {/* セクション4: 振り返りメモ */}
           {discussionMemo && (
-            <ReportSection number="04" title="議論のハイライト" subtitle="DISCUSSION">
+            <ReportSection number="04" title="振り返りメモ" subtitle="REFLECTION">
               <div className="rounded-lg p-4 bg-muted/50 border-l-4" style={{ borderLeftColor: "#06b6d4" }}>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                  {discussionMemo}
-                </p>
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{discussionMemo}</p>
               </div>
             </ReportSection>
           )}
@@ -668,9 +587,7 @@ export default function ParticipantWorkPage() {
                     </h4>
                     <div className="flex flex-wrap gap-2 pl-3">
                       {selected.map((c) => (
-                        <Badge key={c!.id} variant="secondary" className="text-xs">
-                          {c!.name}
-                        </Badge>
+                        <Badge key={c!.id} variant="secondary" className="text-xs">{c!.name}</Badge>
                       ))}
                     </div>
                   </div>
@@ -688,9 +605,7 @@ export default function ParticipantWorkPage() {
           {error && <p className="text-sm text-destructive text-center">{error}</p>}
 
           <div className="flex gap-3">
-            <Button variant="outline" onClick={() => setStep(5)}>
-              戻る
-            </Button>
+            <Button variant="outline" onClick={() => setStep(5)}>戻る</Button>
             <Button
               className="flex-1 text-white"
               size="lg"
