@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { HeroIllustration } from "@/components/illustrations/HeroIllustration";
 import { getKataProblems } from "@/app/actions";
+import { ShareCodeForm } from "./share-code-form";
 
 const difficultyLabel: Record<string, string> = {
   easy: "初級",
@@ -54,6 +55,9 @@ export default async function Home() {
           </Link>
         ))}
       </div>
+
+      {/* 共有コードでレポート一覧 */}
+      <ShareCodeForm />
 
       {/* 座学リンク */}
       <div className="text-center space-y-3">
