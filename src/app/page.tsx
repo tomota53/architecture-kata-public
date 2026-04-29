@@ -35,6 +35,11 @@ export default async function Home() {
       {/* お題一覧 */}
       <div className="space-y-3">
         <h2 className="text-lg font-semibold">お題を選ぶ</h2>
+        {problems.length === 0 && (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            お題がまだ登録されていません。
+          </p>
+        )}
         {problems.map((p) => (
           <Link key={p.id} href={`/kata/${p.id}`}>
             <Card className="hover:shadow-md hover:scale-[1.01] transition-all cursor-pointer border-0 shadow-sm mb-3">

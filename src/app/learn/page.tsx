@@ -103,6 +103,12 @@ const CHARACTERISTICS = [
     summary: "操作履歴を追跡・証明できること",
     example: "誰がいつどのデータを変更したか記録されている",
   },
+  {
+    name: "耐障害性",
+    en: "Fault Tolerance",
+    summary: "一部が壊れても全体が止まらないこと",
+    example: "1台のサーバーが落ちても他のサーバーが処理を引き継ぐ",
+  },
 ];
 
 const TRADEOFFS = [
@@ -318,10 +324,10 @@ export default function LearnPage() {
       <section className="space-y-4">
         <h2 className="text-xl font-medium flex items-center gap-2">
           <span className="text-2xl" aria-hidden="true">🎯</span>
-          12のアーキテクチャ特性
+          13のアーキテクチャ特性
         </h2>
         <p className="text-sm text-muted-foreground leading-relaxed">
-          Architecture Kata ワークでは、以下の12の特性から重要なものを3つ選びます。
+          Architecture Kata ワークでは、以下の13の特性から重要なものを3つ選びます。
           まずはそれぞれの意味を理解しましょう。
         </p>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

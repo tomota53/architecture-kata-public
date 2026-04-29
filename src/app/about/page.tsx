@@ -257,7 +257,7 @@ export default function AboutPage() {
           href="/"
           className="inline-block border border-border rounded-lg px-6 py-2.5 text-sm font-medium hover:bg-muted transition-colors"
         >
-          研修を始める
+          ワークを始める
         </Link>
       </section>
     </div>

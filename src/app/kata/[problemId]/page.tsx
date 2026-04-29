@@ -93,6 +93,7 @@ export default function KataWorkPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
 
   // 現在の入力をDBに保存
   const save = useCallback(async (nextStep: number) => {
@@ -125,6 +126,8 @@ export default function KataWorkPage() {
         setSaving(false);
         return false;
       }
+
+      setLastSavedAt(new Date().toLocaleTimeString("ja-JP", { hour: "2-digit", minute: "2-digit" }));
 
       if (result.id && !reportId) {
         setReportId(result.id);
@@ -319,6 +322,7 @@ export default function KataWorkPage() {
         </div>
       ))}
       {saving && <span className="text-xs text-muted-foreground ml-2 mb-4">保存中...</span>}
+      {!saving && lastSavedAt && <span className="text-xs text-muted-foreground ml-2 mb-4">✓ {lastSavedAt} に保存</span>}
     </div>
   );
 
@@ -379,6 +383,9 @@ export default function KataWorkPage() {
               </p>
             </div>
 
+            {!userName.trim() && (
+              <p className="text-xs text-muted-foreground">名前を入力するとワークを開始できます。</p>
+            )}
             <Button
               className="w-full"
               size="lg"
@@ -481,6 +488,11 @@ export default function KataWorkPage() {
                 );
               })}
             </div>
+            {selectedIds.length < 3 && (
+              <p className="text-xs text-muted-foreground text-center">
+                あと{3 - selectedIds.length}つ選んでください
+              </p>
+            )}
             <div className="flex gap-3">
               <Button variant="outline" onClick={() => goToStep(2)}>戻る</Button>
               <Button variant="outline" disabled={saving} onClick={handleSave}>

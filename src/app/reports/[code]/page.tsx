@@ -58,7 +58,7 @@ export default async function ReportsPage({
             この共有コードに紐づくレポートは見つかりませんでした。
           </p>
           <p className="text-sm text-muted-foreground">
-            共有コードが正しいか確認してください。大文字・小文字は区別されます。
+            共有コードが正しいか確認してください。自動生成コードはすべて大文字です。
           </p>
           <Link href="/" className="text-primary underline text-sm">
             トップに戻る
